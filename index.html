@@ -10,7 +10,7 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            background: #222;
+            background: #0f5ac4;
         }
         #gpu-canvas {
             border: 1px solid #fff;
@@ -19,12 +19,160 @@
     </style>
 </head>
 <body>
-    <canvas id="gpu-canvas" width="800" height="600"></canvas>
+    <canvas id="gpu-canvas" width="1400" height="1100"></canvas>
     <script type="module">
         // Aquí puedes agregar tu código JS con WebGPU
         // Ejemplo de acceso al canvas:
         const canvas = document.getElementById('gpu-canvas');
-        // Tu código WebGPU aquí...
+        // Verifica soporte de WebGPU
+        if (!navigator.gpu) {
+            alert('WebGPU no es soportado en este navegador.');
+            throw new Error('WebGPU no soportado');
+        }
+
+        // Inicializa el adaptador y el dispositivo
+        const adapter = await navigator.gpu.requestAdapter();
+        const device = await adapter.requestDevice();
+
+        // Configura el contexto del canvas
+        const context = canvas.getContext('webgpu');
+        const format = navigator.gpu.getPreferredCanvasFormat();
+        context.configure({
+            device,
+            format,
+            alphaMode: 'opaque'
+        });
+
+        try {
+            // Carga la imagen
+            const img = new Image();
+            img.src = 'marvel.jpg';
+            await img.decode();
+
+            // Crea un bitmap de la imagen
+            const imageBitmap = await createImageBitmap(img);
+
+            alert('with: ' + imageBitmap.width + ' height: ' + imageBitmap.height);
+            // Crea una textura a partir del bitmap
+            const texture = device.createTexture({
+                size: [imageBitmap.width, imageBitmap.height, 1],
+                format: 'rgba8unorm',
+                usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+            });
+            alert('prueba 0');
+            // Copia el bitmap a la textura
+            device.queue.copyExternalImageToTexture(
+                { source: imageBitmap },
+                { texture: texture },
+                [imageBitmap.width, imageBitmap.height]
+            );
+            alert('prueba 1');
+            // Shaders WGSL
+            const shaderCode = `
+            @group(0) @binding(0) var mySampler: sampler;
+            @group(0) @binding(1) var myTexture: texture_2d<f32>;
+
+            struct VertexOutput {
+                @builtin(position) position: vec4<f32>,
+                @location(0) uv: vec2<f32>
+            };
+
+            @vertex
+            fn vs_main(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
+                var pos = array<vec2<f32>, 6>(
+                    vec2<f32>(-1.0, -1.0),
+                    vec2<f32>( 1.0, -1.0),
+                    vec2<f32>(-1.0,  1.0),
+                    vec2<f32>(-1.0,  1.0),
+                    vec2<f32>( 1.0, -1.0),
+                    vec2<f32>( 1.0,  1.0)
+                );
+                var uv = array<vec2<f32>, 6>(
+                    vec2<f32>(0.0, 1.0),
+                    vec2<f32>(1.0, 1.0),
+                    vec2<f32>(0.0, 0.0),
+                    vec2<f32>(0.0, 0.0),
+                    vec2<f32>(1.0, 1.0),
+                    vec2<f32>(1.0, 0.0)
+                );
+                var output: VertexOutput;
+                output.position = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
+                output.uv = uv[vertexIndex];
+                return output;
+            }
+
+            @fragment
+            fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+                return textureSample(myTexture, mySampler, input.uv);
+            }
+            `;
+            alert('prueba 2');
+            // Crea el shader module
+            const shaderModule = device.createShaderModule({ code: shaderCode });
+
+            // Crea el sampler
+            const sampler = device.createSampler({
+                magFilter: 'linear',
+                minFilter: 'linear',
+            });
+            alert('prueba 3');
+            // Crea el bind group layout y pipeline
+            const bindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+                    { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+                ],
+            });
+            alert('prueba 4');
+            const pipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+                vertex: {
+                    module: shaderModule,
+                    entryPoint: 'vs_main',
+                },
+                fragment: {
+                    module: shaderModule,
+                    entryPoint: 'fs_main',
+                    targets: [{ format }],
+                },
+                primitive: { topology: 'triangle-list' },
+            });
+            alert('prueba 5');
+            // Crea el bind group
+            const bindGroup = device.createBindGroup({
+                layout: bindGroupLayout,
+                entries: [
+                    { binding: 0, resource: sampler },
+                    { binding: 1, resource: texture.createView() },
+                ],
+            });
+            alert('prueba 6');
+            // Renderiza la imagen
+            function frame() {
+                const commandEncoder = device.createCommandEncoder();
+                const textureView = context.getCurrentTexture().createView();
+                const renderPass = commandEncoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: textureView,
+                        clearValue: { r: 0, g: 0, b: 0, a: 1 },
+                        loadOp: 'clear',
+                        storeOp: 'store',
+                    }],
+                });
+
+                renderPass.setPipeline(pipeline);
+                renderPass.setBindGroup(0, bindGroup);
+                renderPass.draw(6, 1, 0, 0);
+                renderPass.end();
+
+                device.queue.submit([commandEncoder.finish()]);
+            }
+
+            frame();
+        } catch (e) {
+            alert('Error: ' + e.message);
+            console.error(e);
+        }
     </script>
 </body>
 </html>
