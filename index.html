@@ -10,17 +10,22 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
+            width: 100vw;
             background: #0f5ac4;
         }
         #gpu-canvas {
-            border: 1px solid #fff;
+            border: 0px solid #fff;
             background: #000;
         }
     </style>
 </head>
 <body>
-    <canvas id="gpu-canvas" width="1400" height="1100"></canvas>
+    <div style="position: relative;margin-left: 20vw;">
+        <img src="marvel2.jpg" alt="Imagen">
+        <canvas id="gpu-canvas"></canvas>
+    </div>
     <script type="module">
+        alert('Iniciando WebGPU...');
         // Aquí puedes agregar tu código JS con WebGPU
         // Ejemplo de acceso al canvas:
         const canvas = document.getElementById('gpu-canvas');
@@ -37,6 +42,7 @@
         // Configura el contexto del canvas
         const context = canvas.getContext('webgpu');
         const format = navigator.gpu.getPreferredCanvasFormat();
+
         context.configure({
             device,
             format,
@@ -46,27 +52,30 @@
         try {
             // Carga la imagen
             const img = new Image();
-            img.src = 'marvel.jpg';
+            img.src = 'marvel2.jpg';
             await img.decode();
 
             // Crea un bitmap de la imagen
             const imageBitmap = await createImageBitmap(img);
 
-            alert('with: ' + imageBitmap.width + ' height: ' + imageBitmap.height);
+            // Ajusta el tamaño del canvas al de la imagen
+            canvas.width = imageBitmap.width;
+            canvas.height = imageBitmap.height;
+
             // Crea una textura a partir del bitmap
             const texture = device.createTexture({
                 size: [imageBitmap.width, imageBitmap.height, 1],
                 format: 'rgba8unorm',
                 usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
             });
-            alert('prueba 0');
+
             // Copia el bitmap a la textura
             device.queue.copyExternalImageToTexture(
                 { source: imageBitmap },
                 { texture: texture },
                 [imageBitmap.width, imageBitmap.height]
             );
-            alert('prueba 1');
+
             // Shaders WGSL
             const shaderCode = `
             @group(0) @binding(0) var mySampler: sampler;
@@ -106,7 +115,7 @@
                 return textureSample(myTexture, mySampler, input.uv);
             }
             `;
-            alert('prueba 2');
+
             // Crea el shader module
             const shaderModule = device.createShaderModule({ code: shaderCode });
 
@@ -115,7 +124,7 @@
                 magFilter: 'linear',
                 minFilter: 'linear',
             });
-            alert('prueba 3');
+
             // Crea el bind group layout y pipeline
             const bindGroupLayout = device.createBindGroupLayout({
                 entries: [
@@ -123,7 +132,7 @@
                     { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {} },
                 ],
             });
-            alert('prueba 4');
+
             const pipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
                 vertex: {
@@ -137,7 +146,7 @@
                 },
                 primitive: { topology: 'triangle-list' },
             });
-            alert('prueba 5');
+
             // Crea el bind group
             const bindGroup = device.createBindGroup({
                 layout: bindGroupLayout,
@@ -146,7 +155,7 @@
                     { binding: 1, resource: texture.createView() },
                 ],
             });
-            alert('prueba 6');
+
             // Renderiza la imagen
             function frame() {
                 const commandEncoder = device.createCommandEncoder();
@@ -166,6 +175,7 @@
                 renderPass.end();
 
                 device.queue.submit([commandEncoder.finish()]);
+                alert('Frame renderizado');
             }
 
             frame();
