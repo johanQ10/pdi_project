@@ -22,6 +22,13 @@
     </aside>
     <div class="main-content">
         <div style="position: relative;">
+            <!-- Agrega este código dentro del div.main-content en tu index.html -->
+            <div style="margin-bottom: 20px; text-align: center;">
+                <label for="image-upload" style="cursor:pointer; background:#0a2342; color:#fff; padding:8px 16px; border-radius:4px; font-family:'Montserrat', Arial, sans-serif;">
+                    Cargar imagen
+                    <input type="file" id="image-upload" accept="image/*" style="display:none;">
+                </label>
+            </div>
             <canvas id="gpu-canvas"></canvas>
         </div>
     </div>

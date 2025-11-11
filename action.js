@@ -1,16 +1,16 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Menú lateral responsive
-    const sidebar = document.getElementById('sidebar');
-    const hamburger = document.getElementById('hamburger-btn');
-
-    hamburger.addEventListener('click', () => {
-        sidebar.classList.toggle('show');
-        sidebar.classList.toggle('hide');
-    });
-
     window.addEventListener('resize', updateSidebar);
 
     function updateSidebar() {
+        // Menú lateral responsive
+        const sidebar = document.getElementById('sidebar');
+        const hamburger = document.getElementById('hamburger-btn');
+
+        hamburger.addEventListener('click', () => {
+            sidebar.classList.toggle('show');
+            sidebar.classList.toggle('hide');
+        });
+
         if (window.innerWidth <= 700) {
             sidebar.classList.add('hide');
         } else {
@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function initWebGPU() {
+    async function initWebGPU(imageSrc) {
         const canvas = document.getElementById('gpu-canvas');
         // Verifica soporte de WebGPU
         if (!navigator.gpu) {
@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Carga la imagen
             const img = new Image();
-            img.src = 'marvel2.jpg';
+            img.src = imageSrc;
             await img.decode();
 
             // Crea un bitmap de la imagen
@@ -177,5 +177,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     updateSidebar();
-    initWebGPU();
+
+    let imageSrc; // Imagen por defecto
+
+    const imageInput = document.getElementById('image-upload');
+
+    if (imageInput) {
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+
+            if (file) {
+                imageSrc = URL.createObjectURL(file);
+                initWebGPU(imageSrc); // Recarga la imagen en el canvas
+            }
+        });
+    }
 });
