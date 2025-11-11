@@ -1,0 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+
+body, .sidebar, .sidebar a, .main-content {
+    font-family: 'Montserrat', Arial, sans-serif;
+}
+body {
+    margin: 0;
+    height: 100vh;
+    width: 100vw;
+    background: #FAFAFC;
+    display: flex;
+}
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 250px;
+    background: linear-gradient(180deg, #0a2342 80%, #000 100%);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    padding-top: 40px;
+    transition: transform 0.3s ease;
+    z-index: 1000;
+}
+.sidebar.hide {
+    transform: translateX(-100%);
+}
+.sidebar nav {
+    display: flex;
+    flex-direction: column;
+}
+.sidebar a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 1.1em;
+    padding: 20px 20px;
+    border-radius: 4px;
+    transition: background 0.2s;
+    font-family: 'Montserrat', Arial, sans-serif;
+}
+.sidebar a:hover {
+    background: #163d6b;
+}
+.hamburger {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: none;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1100;
+    cursor: pointer;
+}
+.hamburger span {
+    display: block;
+    width: 24px;
+    height: 3px;
+    background: #fff;
+    margin: 4px 0;
+    border-radius: 2px;
+    transition: 0.3s;
+}
+@media (max-width: 700px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+    .sidebar.show {
+        transform: translateX(0);
+    }
+    .hamburger {
+        display: flex;
+    }
+    body {
+        flex-direction: column;
+    }
+    .main-content {
+        margin-left: 0 !important;
+    }
+}
+.main-content {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-left: 220px;
+    transition: margin-left 0.3s;
+    width: 100%;
+    height: 100vh;
+    font-family: 'Montserrat', Arial, sans-serif;
+}
+@media (max-width: 700px) {
+    .main-content {
+        margin-left: 0;
+    }
+}
+#gpu-canvas {
+    border: 0px solid #fff;
+    background: #000;
+}
