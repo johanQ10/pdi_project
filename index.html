@@ -14,22 +14,21 @@
     </button>
     <aside class="sidebar" id="sidebar">
         <nav>
-            <a href="#">Inicio</a>
-            <a href="#">Procesar Imagen</a>
-            <a href="#">Filtros</a>
-            <a href="#">Acerca de</a>
+            <a href="#">Filtro 1</a>
+            <a href="#">Filtro 2</a>
+            <a href="#">Filtro 3</a>
         </nav>
     </aside>
     <div class="main-content">
-        <div style="position: relative;">
+        <div>
             <!-- Agrega este código dentro del div.main-content en tu index.html -->
             <div style="margin-bottom: 20px; text-align: center;">
-                <label for="image-upload" style="cursor:pointer; background:#0a2342; color:#fff; padding:8px 16px; border-radius:4px; font-family:'Montserrat', Arial, sans-serif;">
-                    Cargar imagen
+                <label for="image-upload" id="image-upload-label">
+                    Load image
                     <input type="file" id="image-upload" accept="image/*" style="display:none;">
                 </label>
             </div>
-            <canvas id="gpu-canvas"></canvas>
+            <canvas id="gpu-canvas" width="0px" height="0px"></canvas>
         </div>
     </div>
 </body>

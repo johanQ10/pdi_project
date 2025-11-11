@@ -95,6 +95,11 @@ body {
     height: 100vh;
     font-family: 'Montserrat', Arial, sans-serif;
 }
+.main-content > div {
+    max-width: 100%;
+    max-height: 100%;
+    position: relative;
+}
 @media (max-width: 700px) {
     .main-content {
         margin-left: 0;
@@ -103,4 +108,14 @@ body {
 #gpu-canvas {
     border: 0px solid #fff;
     background: #000;
+    max-width: 100%;
+    max-height: 100%;
+}
+#image-upload-label {
+    cursor: pointer;
+    background: #0a2342;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-family: 'Montserrat', Arial, sans-serif;
 }

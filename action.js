@@ -191,5 +191,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 initWebGPU(imageSrc); // Recarga la imagen en el canvas
             }
         });
+
+        // Callbacks para las opciones del menú
+        const menuLinks = document.querySelectorAll('.sidebar nav a');
+        menuLinks.forEach((link, idx) => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                switch (idx) {
+                    case 0:
+                        // code
+                        break;
+                    case 1:
+                        // code
+                        break;
+                    case 2:
+                        // code
+                        break;
+                    default:
+                        alert('Opción de menú');
+                }
+            });
+        });
     }
 });
