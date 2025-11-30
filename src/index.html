@@ -23,10 +23,22 @@
         <div>
             <!-- Agrega este código dentro del div.main-content en tu index.html -->
             <div style="margin-bottom: 20px; text-align: center;">
-                <label for="image-upload" id="image-upload-label">
+                <label for="image-load" class="image-upload-label">
                     Load image
-                    <input type="file" id="image-upload" accept="image/*" style="display:none;">
+                    <input type="file" id="image-load" accept="image/*" style="display:none;">
                 </label>
+            </div>
+            <div style="display: flex;justify-content: center;">
+                <div style="margin-bottom: 20px; text-align: center;">
+                    <label for="image-erosion" class="image-upload-label" id="image-erosion">
+                        Erosión
+                    </label>
+                </div>
+                <div style="margin-bottom: 20px; text-align: center;">
+                    <label for="image-dilatacion" class="image-upload-label" id="image-dilatacion">
+                        Dilatación
+                    </label>
+                </div>
             </div>
             <canvas id="gpu-canvas" width="0px" height="0px"></canvas>
         </div>

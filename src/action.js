@@ -180,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let imageSrc; // Imagen por defecto
 
-    const imageInput = document.getElementById('image-upload');
+    const imageInput = document.getElementById('image-load');
 
     if (imageInput) {
         imageInput.addEventListener('change', (e) => {
@@ -194,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Callbacks para las opciones del menú
         const menuLinks = document.querySelectorAll('.sidebar nav a');
+
         menuLinks.forEach((link, idx) => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -211,6 +212,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         alert('Opción de menú');
                 }
             });
+        });
+
+        const erosion = document.getElementById('image-erosion');
+        const dilatacion = document.getElementById('image-dilatacion');
+
+        erosion.addEventListener('click', function(event) {
+            alert('Erosion');
+        });
+
+        dilatacion.addEventListener('click', function(event) {
+            alert('Dilatacion');
         });
     }
 });
