@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', updateSidebar);
 
     let imageSrc; // Imagen por defecto
+    let img = new Image();
 
     const erosionShader = `
         @group(0) @binding(0) var mySampler: sampler;
@@ -41,8 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
             let texSize = vec2<f32>(textureDimensions(myTexture, 0));
             let pixel = input.uv * texSize;
             var minVal = 1.0;
-            for(var dy: i32 = -1; dy <= 1; dy = dy + 1) {
-                for(var dx: i32 = -1; dx <= 1; dx = dx + 1) {
+            for(var dy: i32 = -1; dy <= 1; dy++) {
+                for(var dx: i32 = -1; dx <= 1; dx++) {
                     let coord = (pixel + vec2<f32>(f32(dx), f32(dy))) / texSize;
                     let color = textureSample(myTexture, mySampler, coord);
                     // Para escala de grises, usa solo un canal (ejemplo: .r)
@@ -50,6 +51,56 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             return vec4<f32>(minVal, minVal, minVal, 1.0);
+        }
+        `;
+
+    const dilatationShader = `
+        @group(0) @binding(0) var mySampler: sampler;
+        @group(0) @binding(1) var myTexture: texture_2d<f32>;
+
+        struct VertexOutput {
+            @builtin(position) position: vec4<f32>,
+            @location(0) uv: vec2<f32>
+        };
+
+        @vertex
+        fn vs_main(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
+            var pos = array<vec2<f32>, 6>(
+                vec2<f32>(-1.0, -1.0),
+                vec2<f32>( 1.0, -1.0),
+                vec2<f32>(-1.0,  1.0),
+                vec2<f32>(-1.0,  1.0),
+                vec2<f32>( 1.0, -1.0),
+                vec2<f32>( 1.0,  1.0)
+            );
+            var uv = array<vec2<f32>, 6>(
+                vec2<f32>(0.0, 1.0),
+                vec2<f32>(1.0, 1.0),
+                vec2<f32>(0.0, 0.0),
+                vec2<f32>(0.0, 0.0),
+                vec2<f32>(1.0, 1.0),
+                vec2<f32>(1.0, 0.0)
+            );
+            var output: VertexOutput;
+            output.position = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
+            output.uv = uv[vertexIndex];
+            return output;
+        }
+
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let texSize = vec2<f32>(textureDimensions(myTexture, 0));
+            let pixel = input.uv * texSize;
+            var maxVal = 0.0;
+            for(var dy: i32 = -1; dy <= 1; dy++) {
+                for(var dx: i32 = -1; dx <= 1; dx++) {
+                    let coord = (pixel + vec2<f32>(f32(dx), f32(dy))) / texSize;
+                    let color = textureSample(myTexture, mySampler, coord);
+                    // Para escala de grises, usa solo un canal (ejemplo: .r)
+                    maxVal = max(maxVal, color.r);
+                }
+            }
+            return vec4<f32>(maxVal, maxVal, maxVal, 1.0);
         }
         `;
 
@@ -134,8 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // Carga la imagen
-            const img = new Image();
-            img.src = imageSrc;
             await img.decode();
 
             // Crea un bitmap de la imagen
@@ -220,6 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 device.queue.submit([commandEncoder.finish()]);
 
                 imageSrc = canvas.toDataURL('image/png');
+                img.src = imageSrc;
             }
 
             frame();
@@ -239,6 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (file) {
                 imageSrc = URL.createObjectURL(file);
+                img.src = imageSrc;
                 initWebGPU(imageSrc, generalShader); // Recarga la imagen en el canvas
             }
         });
@@ -273,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         dilatacion.addEventListener('click', function(event) {
-            alert('Dilatacion');
+            initWebGPU(imageSrc, dilatationShader);
         });
     }
 });
