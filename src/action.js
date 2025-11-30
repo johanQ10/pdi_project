@@ -1,6 +1,97 @@
 document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', updateSidebar);
 
+    let imageSrc; // Imagen por defecto
+
+    const erosionShader = `
+        @group(0) @binding(0) var mySampler: sampler;
+        @group(0) @binding(1) var myTexture: texture_2d<f32>;
+
+        struct VertexOutput {
+            @builtin(position) position: vec4<f32>,
+            @location(0) uv: vec2<f32>
+        };
+
+        @vertex
+        fn vs_main(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
+            var pos = array<vec2<f32>, 6>(
+                vec2<f32>(-1.0, -1.0),
+                vec2<f32>( 1.0, -1.0),
+                vec2<f32>(-1.0,  1.0),
+                vec2<f32>(-1.0,  1.0),
+                vec2<f32>( 1.0, -1.0),
+                vec2<f32>( 1.0,  1.0)
+            );
+            var uv = array<vec2<f32>, 6>(
+                vec2<f32>(0.0, 1.0),
+                vec2<f32>(1.0, 1.0),
+                vec2<f32>(0.0, 0.0),
+                vec2<f32>(0.0, 0.0),
+                vec2<f32>(1.0, 1.0),
+                vec2<f32>(1.0, 0.0)
+            );
+            var output: VertexOutput;
+            output.position = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
+            output.uv = uv[vertexIndex];
+            return output;
+        }
+
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let texSize = vec2<f32>(textureDimensions(myTexture, 0));
+            let pixel = input.uv * texSize;
+            var minVal = 1.0;
+            for(var dy: i32 = -1; dy <= 1; dy = dy + 1) {
+                for(var dx: i32 = -1; dx <= 1; dx = dx + 1) {
+                    let coord = (pixel + vec2<f32>(f32(dx), f32(dy))) / texSize;
+                    let color = textureSample(myTexture, mySampler, coord);
+                    // Para escala de grises, usa solo un canal (ejemplo: .r)
+                    minVal = min(minVal, color.r);
+                }
+            }
+            return vec4<f32>(minVal, minVal, minVal, 1.0);
+        }
+        `;
+
+    const generalShader = `
+        @group(0) @binding(0) var mySampler: sampler;
+        @group(0) @binding(1) var myTexture: texture_2d<f32>;
+
+        struct VertexOutput {
+            @builtin(position) position: vec4<f32>,
+            @location(0) uv: vec2<f32>
+        };
+
+        @vertex
+        fn vs_main(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
+            var pos = array<vec2<f32>, 6>(
+                vec2<f32>(-1.0, -1.0),
+                vec2<f32>( 1.0, -1.0),
+                vec2<f32>(-1.0,  1.0),
+                vec2<f32>(-1.0,  1.0),
+                vec2<f32>( 1.0, -1.0),
+                vec2<f32>( 1.0,  1.0)
+            );
+            var uv = array<vec2<f32>, 6>(
+                vec2<f32>(0.0, 1.0),
+                vec2<f32>(1.0, 1.0),
+                vec2<f32>(0.0, 0.0),
+                vec2<f32>(0.0, 0.0),
+                vec2<f32>(1.0, 1.0),
+                vec2<f32>(1.0, 0.0)
+            );
+            var output: VertexOutput;
+            output.position = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
+            output.uv = uv[vertexIndex];
+            return output;
+        }
+
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            return textureSample(myTexture, mySampler, input.uv);
+        }
+        `;
+
     function updateSidebar() {
         // Menú lateral responsive
         const sidebar = document.getElementById('sidebar');
@@ -19,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function initWebGPU(imageSrc) {
+    async function initWebGPU(imageSrc, shaderCode) {
         const canvas = document.getElementById('gpu-canvas');
         // Verifica soporte de WebGPU
         if (!navigator.gpu) {
@@ -67,46 +158,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 { texture: texture },
                 [imageBitmap.width, imageBitmap.height]
             );
-
-            // Shaders WGSL
-            const shaderCode = `
-            @group(0) @binding(0) var mySampler: sampler;
-            @group(0) @binding(1) var myTexture: texture_2d<f32>;
-
-            struct VertexOutput {
-                @builtin(position) position: vec4<f32>,
-                @location(0) uv: vec2<f32>
-            };
-
-            @vertex
-            fn vs_main(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
-                var pos = array<vec2<f32>, 6>(
-                    vec2<f32>(-1.0, -1.0),
-                    vec2<f32>( 1.0, -1.0),
-                    vec2<f32>(-1.0,  1.0),
-                    vec2<f32>(-1.0,  1.0),
-                    vec2<f32>( 1.0, -1.0),
-                    vec2<f32>( 1.0,  1.0)
-                );
-                var uv = array<vec2<f32>, 6>(
-                    vec2<f32>(0.0, 1.0),
-                    vec2<f32>(1.0, 1.0),
-                    vec2<f32>(0.0, 0.0),
-                    vec2<f32>(0.0, 0.0),
-                    vec2<f32>(1.0, 1.0),
-                    vec2<f32>(1.0, 0.0)
-                );
-                var output: VertexOutput;
-                output.position = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
-                output.uv = uv[vertexIndex];
-                return output;
-            }
-
-            @fragment
-            fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-                return textureSample(myTexture, mySampler, input.uv);
-            }
-            `;
 
             // Crea el shader module
             const shaderModule = device.createShaderModule({ code: shaderCode });
@@ -167,6 +218,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderPass.end();
 
                 device.queue.submit([commandEncoder.finish()]);
+
+                imageSrc = canvas.toDataURL('image/png');
             }
 
             frame();
@@ -178,8 +231,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateSidebar();
 
-    let imageSrc; // Imagen por defecto
-
     const imageInput = document.getElementById('image-load');
 
     if (imageInput) {
@@ -188,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (file) {
                 imageSrc = URL.createObjectURL(file);
-                initWebGPU(imageSrc); // Recarga la imagen en el canvas
+                initWebGPU(imageSrc, generalShader); // Recarga la imagen en el canvas
             }
         });
 
@@ -218,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const dilatacion = document.getElementById('image-dilatacion');
 
         erosion.addEventListener('click', function(event) {
-            alert('Erosion');
+            initWebGPU(imageSrc, erosionShader);
         });
 
         dilatacion.addEventListener('click', function(event) {
