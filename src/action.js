@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', updateSidebar);
 
     let imageSrc; // Imagen por defecto
-    let img = new Image();
+    let img;
 
     const erosionShader = `
         @group(0) @binding(0) var mySampler: sampler;
@@ -288,9 +288,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const file = e.target.files[0];
 
             if (file) {
+                img = new Image();
                 imageSrc = URL.createObjectURL(file);
                 img.src = imageSrc;
                 initWebGPU(imageSrc, generalShader); // Recarga la imagen en el canvas
+                imageInput.value = ''; // Resetea el input
             }
         });
 
