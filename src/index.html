@@ -14,7 +14,11 @@
     </button>
     <aside class="sidebar" id="sidebar">
         <nav>
-            <a href="#">Filtro 1</a>
+            <a href="#" id="menu-erosion">Erosión</a>
+            <a href="#" id="menu-dilatation">Dilatación</a>
+            <a href="#" id="menu-grayscale">Escala de Grises</a>
+            <a href="#" id="menu-colorscale">Escala de Color</a>
+            <a href="#" id="menu-negative">Negativo</a>
             <a href="#">Filtro 2</a>
             <a href="#">Filtro 3</a>
         </nav>
@@ -28,19 +32,7 @@
                     <input type="file" id="image-load" accept="image/*" style="display:none;">
                 </label>
             </div>
-            <div style="display: flex;justify-content: center;">
-                <div style="margin-bottom: 20px; text-align: center;">
-                    <label for="image-erosion" class="image-upload-label" id="image-erosion">
-                        Erosión
-                    </label>
-                </div>
-                <div style="margin-bottom: 20px; text-align: center;">
-                    <label for="image-dilatacion" class="image-upload-label" id="image-dilatacion">
-                        Dilatación
-                    </label>
-                </div>
-            </div>
-            <canvas id="gpu-canvas" width="0px" height="0px"></canvas>
+            <canvas id="gpu-canvas" width="0px" height="0px" style="display: none;"></canvas>
         </div>
     </div>
 </body>
