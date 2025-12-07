@@ -3,8 +3,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let imageSrc; // Imagen por defecto
     let img;
+    let context;
 
-    const erosionShader = `
+    let genericInitShader = `
         @group(0) @binding(0) var mySampler: sampler;
         @group(0) @binding(1) var myTexture: texture_2d<f32>;
 
@@ -12,8 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
             @builtin(position) position: vec4<f32>,
             @location(0) uv: vec2<f32>
         };
-
-        @vertex
+        `;
+    let genericVertexShader = `@vertex
         fn vs_main(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
             var pos = array<vec2<f32>, 6>(
                 vec2<f32>(-1.0, -1.0),
@@ -36,7 +37,12 @@ document.addEventListener('DOMContentLoaded', () => {
             output.uv = uv[vertexIndex];
             return output;
         }
+        `;
 
+    let colorScaleShader;
+
+    const erosionShader = genericInitShader + genericVertexShader + 
+        `
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
             let texSize = vec2<f32>(textureDimensions(myTexture, 0));
@@ -54,39 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         `;
 
-    const dilatationShader = `
-        @group(0) @binding(0) var mySampler: sampler;
-        @group(0) @binding(1) var myTexture: texture_2d<f32>;
-
-        struct VertexOutput {
-            @builtin(position) position: vec4<f32>,
-            @location(0) uv: vec2<f32>
-        };
-
-        @vertex
-        fn vs_main(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
-            var pos = array<vec2<f32>, 6>(
-                vec2<f32>(-1.0, -1.0),
-                vec2<f32>( 1.0, -1.0),
-                vec2<f32>(-1.0,  1.0),
-                vec2<f32>(-1.0,  1.0),
-                vec2<f32>( 1.0, -1.0),
-                vec2<f32>( 1.0,  1.0)
-            );
-            var uv = array<vec2<f32>, 6>(
-                vec2<f32>(0.0, 1.0),
-                vec2<f32>(1.0, 1.0),
-                vec2<f32>(0.0, 0.0),
-                vec2<f32>(0.0, 0.0),
-                vec2<f32>(1.0, 1.0),
-                vec2<f32>(1.0, 0.0)
-            );
-            var output: VertexOutput;
-            output.position = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
-            output.uv = uv[vertexIndex];
-            return output;
-        }
-
+    const dilatationShader = genericInitShader + genericVertexShader + 
+        `
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
             let texSize = vec2<f32>(textureDimensions(myTexture, 0));
@@ -104,121 +79,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         `;
 
-    const grayScaleShader = `
-        @group(0) @binding(0) var mySampler: sampler;
-        @group(0) @binding(1) var myTexture: texture_2d<f32>;
-
-        struct VertexOutput {
-            @builtin(position) position: vec4<f32>,
-            @location(0) uv: vec2<f32>
-        };
-
-        @vertex
-        fn vs_main(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
-            var pos = array<vec2<f32>, 6>(
-                vec2<f32>(-1.0, -1.0),
-                vec2<f32>( 1.0, -1.0),
-                vec2<f32>(-1.0,  1.0),
-                vec2<f32>(-1.0,  1.0),
-                vec2<f32>( 1.0, -1.0),
-                vec2<f32>( 1.0,  1.0)
-            );
-            var uv = array<vec2<f32>, 6>(
-                vec2<f32>(0.0, 1.0),
-                vec2<f32>(1.0, 1.0),
-                vec2<f32>(0.0, 0.0),
-                vec2<f32>(0.0, 0.0),
-                vec2<f32>(1.0, 1.0),
-                vec2<f32>(1.0, 0.0)
-            );
-            var output: VertexOutput;
-            output.position = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
-            output.uv = uv[vertexIndex];
-            return output;
-        }
-
+    const grayScaleShader = genericInitShader + genericVertexShader +
+        `
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
             let color = textureSample(myTexture, mySampler, input.uv);
-            let promColor = dot(color.rgb, vec3<f32>(0.299, 0.587, 0.114));//(color.r + color.g + color.b) / 3.0;
+            let promColor = dot(color.rgb, vec3<f32>(0.21, 0.72, 0.07));
+            // let promColor = (color.r + color.g + color.b) / 3.0;
             return vec4<f32>(promColor, promColor, promColor, 1.0);
         }
         `;
 
-    const colorScaleShader = `
-        @group(0) @binding(0) var mySampler: sampler;
-        @group(0) @binding(1) var myTexture: texture_2d<f32>;
-
-        struct VertexOutput {
-            @builtin(position) position: vec4<f32>,
-            @location(0) uv: vec2<f32>
-        };
-
-        @vertex
-        fn vs_main(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
-            var pos = array<vec2<f32>, 6>(
-                vec2<f32>(-1.0, -1.0),
-                vec2<f32>( 1.0, -1.0),
-                vec2<f32>(-1.0,  1.0),
-                vec2<f32>(-1.0,  1.0),
-                vec2<f32>( 1.0, -1.0),
-                vec2<f32>( 1.0,  1.0)
-            );
-            var uv = array<vec2<f32>, 6>(
-                vec2<f32>(0.0, 1.0),
-                vec2<f32>(1.0, 1.0),
-                vec2<f32>(0.0, 0.0),
-                vec2<f32>(0.0, 0.0),
-                vec2<f32>(1.0, 1.0),
-                vec2<f32>(1.0, 0.0)
-            );
-            var output: VertexOutput;
-            output.position = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
-            output.uv = uv[vertexIndex];
-            return output;
-        }
-
-        @fragment
-        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-            let color = textureSample(myTexture, mySampler, input.uv);
-            let promColor = (color.r + color.g + color.b) / 3.0;
-            return vec4<f32>(1.0, promColor, promColor, 1.0);
-        }
-        `;
-
-    const negativeShader = `
-        @group(0) @binding(0) var mySampler: sampler;
-        @group(0) @binding(1) var myTexture: texture_2d<f32>;
-
-        struct VertexOutput {
-            @builtin(position) position: vec4<f32>,
-            @location(0) uv: vec2<f32>
-        };
-
-        @vertex
-        fn vs_main(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
-            var pos = array<vec2<f32>, 6>(
-                vec2<f32>(-1.0, -1.0),
-                vec2<f32>( 1.0, -1.0),
-                vec2<f32>(-1.0,  1.0),
-                vec2<f32>(-1.0,  1.0),
-                vec2<f32>( 1.0, -1.0),
-                vec2<f32>( 1.0,  1.0)
-            );
-            var uv = array<vec2<f32>, 6>(
-                vec2<f32>(0.0, 1.0),
-                vec2<f32>(1.0, 1.0),
-                vec2<f32>(0.0, 0.0),
-                vec2<f32>(0.0, 0.0),
-                vec2<f32>(1.0, 1.0),
-                vec2<f32>(1.0, 0.0)
-            );
-            var output: VertexOutput;
-            output.position = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
-            output.uv = uv[vertexIndex];
-            return output;
-        }
-
+    const negativeShader =  genericInitShader + genericVertexShader + 
+        `
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
             let color = textureSample(myTexture, mySampler, input.uv);
@@ -229,39 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         `;
 
-    const generalShader = `
-        @group(0) @binding(0) var mySampler: sampler;
-        @group(0) @binding(1) var myTexture: texture_2d<f32>;
-
-        struct VertexOutput {
-            @builtin(position) position: vec4<f32>,
-            @location(0) uv: vec2<f32>
-        };
-
-        @vertex
-        fn vs_main(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
-            var pos = array<vec2<f32>, 6>(
-                vec2<f32>(-1.0, -1.0),
-                vec2<f32>( 1.0, -1.0),
-                vec2<f32>(-1.0,  1.0),
-                vec2<f32>(-1.0,  1.0),
-                vec2<f32>( 1.0, -1.0),
-                vec2<f32>( 1.0,  1.0)
-            );
-            var uv = array<vec2<f32>, 6>(
-                vec2<f32>(0.0, 1.0),
-                vec2<f32>(1.0, 1.0),
-                vec2<f32>(0.0, 0.0),
-                vec2<f32>(0.0, 0.0),
-                vec2<f32>(1.0, 1.0),
-                vec2<f32>(1.0, 0.0)
-            );
-            var output: VertexOutput;
-            output.position = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
-            output.uv = uv[vertexIndex];
-            return output;
-        }
-
+    const generalShader =  genericInitShader + genericVertexShader + 
+        `
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
             return textureSample(myTexture, mySampler, input.uv);
@@ -299,14 +141,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const device = await adapter.requestDevice();
 
         // Configura el contexto del canvas
-        const context = canvas.getContext('webgpu');
+        context = canvas.getContext('webgpu');
         const format = navigator.gpu.getPreferredCanvasFormat();
 
-        context.configure({
-            device,
-            format,
-            alphaMode: 'opaque'
-        });
+        context.configure({device, format, alphaMode: 'opaque'});
 
         try {
             // Carga la imagen
@@ -404,6 +242,59 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function colorToRGB(r, g, b) {
+        return genericInitShader + genericVertexShader + 
+        `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let color = textureSample(myTexture, mySampler, input.uv);
+            let promColor = (color.r + color.g + color.b) / 3.0;
+
+            var r = ${r} * 1.0;
+            var g = ${g} * 1.0;
+            var b = ${b} * 1.0;
+
+            if (promColor < 0.5) {
+                r = r * promColor / 0.5;
+                g = g * promColor / 0.5;
+                b = b * promColor / 0.5;
+            } else {
+                r = r + (1.0 - r) * (promColor - 0.5) / 0.5;
+                g = g + (1.0 - g) * (promColor - 0.5) / 0.5;
+                b = b + (1.0 - b) * (promColor - 0.5) / 0.5;
+            }
+
+            r = clamp(r, 0.0, 1.0);
+            g = clamp(g, 0.0, 1.0);
+            b = clamp(b, 0.0, 1.0);
+
+            return vec4<f32>(r, g, b, 1.0);
+        }
+        `;
+    }
+
+    function getImageInfo() {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
+        const data = imageData.data;
+
+        const colors = new Set();
+
+        for (let i = 0; i < data.length; i += 4)
+            colors.add(`${data[i]},${data[i+1]},${data[i+2]},${data[i+3]}`);
+
+        alert(`
+            IMAGEN
+            Dimensiones: ${img.naturalWidth} x ${img.naturalHeight} píxeles
+            Bit por píxel: ${(data.length / (img.naturalWidth * img.naturalHeight)) * 8},
+            Colores únicos: ${colors.size}
+        `);
+    }
+
     updateSidebar();
 
     const imageInput = document.getElementById('image-load');
@@ -418,31 +309,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 img = new Image();
                 imageSrc = URL.createObjectURL(file);
                 img.src = imageSrc;
-                initWebGPU(imageSrc, generalShader); // Recarga la imagen en el canvas
-                imageInput.value = ''; // Resetea el input
+                initWebGPU(imageSrc, generalShader);
+                imageInput.value = '';
             }
         });
 
+        const info = document.getElementById('menu-info');
         const erosion = document.getElementById('menu-erosion');
         const dilatacion = document.getElementById('menu-dilatation');
         const grayScale = document.getElementById('menu-grayscale');
         const colorScale = document.getElementById('menu-colorscale');
         const negative = document.getElementById('menu-negative');
 
-        erosion.addEventListener('click', function(event) {
-            initWebGPU(imageSrc, erosionShader);
-        });
-        dilatacion.addEventListener('click', function(event) {
-            initWebGPU(imageSrc, dilatationShader);
-        });
-        grayScale.addEventListener('click', function(event) {
-            initWebGPU(imageSrc, grayScaleShader);
-        });
-        colorScale.addEventListener('click', function(event) {
-            initWebGPU(imageSrc, colorScaleShader);
-        });
-        negative.addEventListener('click', function(event) {
-            initWebGPU(imageSrc, negativeShader);
+        info.addEventListener('click', function(event) { getImageInfo(); });
+        erosion.addEventListener('click', function(event) { initWebGPU(imageSrc, erosionShader); });
+        dilatacion.addEventListener('click', function(event) { initWebGPU(imageSrc, dilatationShader); });
+        grayScale.addEventListener('click', function(event) { initWebGPU(imageSrc, grayScaleShader); });
+        colorScale.addEventListener('click', function(event) { initWebGPU(imageSrc, colorScaleShader); });
+        negative.addEventListener('click', function(event) { initWebGPU(imageSrc, negativeShader); });
+
+        const colorPicker = document.getElementById('color-picker');
+
+        colorPicker.addEventListener('input', (event) => {
+            const colorValue = event.target.value;
+            const r = parseInt(colorValue.substring(1, 3), 16) / 255.0;
+            const g = parseInt(colorValue.substring(3, 5), 16) / 255.0;
+            const b = parseInt(colorValue.substring(5, 7), 16) / 255.0;
+
+            colorScaleShader = colorToRGB(r, g, b);
         });
     }
 });

@@ -35,7 +35,7 @@ body {
     color: #fff;
     text-decoration: none;
     font-size: 1.1em;
-    padding: 20px 20px;
+    padding: 5px 20px;
     border-radius: 4px;
     transition: background 0.2s;
     font-family: 'Montserrat', Arial, sans-serif;
@@ -120,4 +120,9 @@ body {
     margin: 10px;
     border-radius: 4px;
     font-family: 'Montserrat', Arial, sans-serif;
+}
+#color-picker {
+    width: 25px;
+    border-radius: 20px;
+    margin-left: 5px;
 }
