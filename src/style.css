@@ -36,12 +36,15 @@ body {
     text-decoration: none;
     font-size: 1.1em;
     padding: 5px 20px;
-    border-radius: 4px;
+    border-radius: 0px;
     transition: background 0.2s;
     font-family: 'Montserrat', Arial, sans-serif;
+    border-width: 0px 0px 1px 0px;
+    border-color: white;
+    border-style: solid;
 }
 .sidebar a:hover {
-    background: #163d6b;
+    background: crimson;
 }
 .hamburger {
     position: fixed;

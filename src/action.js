@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let imageSrc; // Imagen por defecto
     let img;
     let context;
+    let bitsPerPixel = 0;
 
     let genericInitShader = `
         @group(0) @binding(0) var mySampler: sampler;
@@ -277,22 +278,72 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvas = document.createElement('canvas');
         canvas.width = img.naturalWidth;
         canvas.height = img.naturalHeight;
+
         const ctx = canvas.getContext('2d');
+
         ctx.drawImage(img, 0, 0);
+
         const imageData = ctx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
         const data = imageData.data;
 
         const colors = new Set();
 
-        for (let i = 0; i < data.length; i += 4)
-            colors.add(`${data[i]},${data[i+1]},${data[i+2]},${data[i+3]}`);
+        for (let i = 0; i < data.length; i += 4) {
+            let str = `${data[i]},${data[i + 1]},${data[i + 2]},${data[i + 3]}`;
+            colors.add(str);
+        }
 
         alert(`
             IMAGEN
-            Dimensiones: ${img.naturalWidth} x ${img.naturalHeight} píxeles
-            Bit por píxel: ${(data.length / (img.naturalWidth * img.naturalHeight)) * 8},
+            Dimensiones: ${img.naturalWidth} x ${img.naturalHeight} px
+            Bit por píxel: ${bitsPerPixel} bits,
             Colores únicos: ${colors.size}
         `);
+    }
+
+    function getBitsPerPixel(file) {
+        const fileReader = new FileReader();
+
+        fileReader.onload = function(ev) {
+            const bytes = new Uint8Array(ev.target.result);
+
+            if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) { // GIF
+                bitsPerPixel = (bytes[10] & 0b00000111) + 1;
+            } 
+            else if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) { // PNG
+                const bitsPerChannel = bytes[24];
+                const colorType = bytes[25];
+                let channels = 0;
+
+                switch (colorType) {
+                    case 0: channels = 1; break; // Grayscale
+                    case 2: channels = 3; break; // RGB: color
+                    case 3: channels = 1; break; // Indexed: color, palette
+                    case 4: channels = 2; break; // Grayscale + Alpha
+                    case 6: channels = 4; break; // RGBA: color + Alpha
+                    default: channels = 0;
+                }
+                bitsPerPixel = bitsPerChannel * channels;
+            }
+            else if (bytes[0] === 0xFF && bytes[1] === 0xD8) { // JPEG/JPG
+                for (let i = 2; i < bytes.length - 1; i++) {
+                    if (bytes[i] === 0xFF && bytes[i + 1] === 0xC0) {
+                        const bitsPerChannel = bytes[i + 4];
+                        const channels = bytes[i + 9];
+                        bitsPerPixel = bitsPerChannel * channels;
+                        break;
+                    }
+                }
+            }
+            else if (bytes[0] === 0x42 && bytes[1] === 0x4D) { // BMP
+                bitsPerPixel = bytes[28];
+            }
+            else {
+                alert('Formato no soportado para la información de bits por píxel');
+            }
+        };
+
+        fileReader.readAsArrayBuffer(file.slice(0, 5000));
     }
 
     updateSidebar();
@@ -304,11 +355,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const file = e.target.files[0];
 
             if (file) {
+                getBitsPerPixel(file);
+
                 document.getElementById('gpu-canvas').style.display = 'flex';
 
                 img = new Image();
                 imageSrc = URL.createObjectURL(file);
                 img.src = imageSrc;
+
                 initWebGPU(imageSrc, generalShader);
                 imageInput.value = '';
             }
@@ -329,6 +383,8 @@ document.addEventListener('DOMContentLoaded', () => {
         negative.addEventListener('click', function(event) { initWebGPU(imageSrc, negativeShader); });
 
         const colorPicker = document.getElementById('color-picker');
+
+        colorScaleShader = colorToRGB(1.0, 0.0, 0.0);
 
         colorPicker.addEventListener('input', (event) => {
             const colorValue = event.target.value;
