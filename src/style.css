@@ -31,7 +31,7 @@ body {
     display: flex;
     flex-direction: column;
 }
-.sidebar a {
+.sidebar a, .sidebar div {
     color: #fff;
     text-decoration: none;
     font-size: 1.1em;
@@ -43,7 +43,7 @@ body {
     border-color: white;
     border-style: solid;
 }
-.sidebar a:hover {
+.sidebar a:hover, .sidebar div:hover {
     background: crimson;
 }
 .hamburger {
