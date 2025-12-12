@@ -8,8 +8,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let bitsPerPixel = 0;
     let brightnessLevel = 0;
     let contrastLevel = 1;
+    let colorValue = "#ff0000";
 
-    let genericInitShader = `
+    let vertexShader = `
         @group(0) @binding(0) var mySampler: sampler;
         @group(0) @binding(1) var myTexture: texture_2d<f32>;
 
@@ -17,8 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
             @builtin(position) position: vec4<f32>,
             @location(0) uv: vec2<f32>
         };
-        `;
-    let genericVertexShader = `
+
         @vertex
         fn vs_main(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
             var pos = array<vec2<f32>, 6>(
@@ -44,19 +44,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         `;
 
-    let colorScaleShader;
-    let brightnessShader;
-    let contrastShader;
-
-    const generalShader =  genericInitShader + genericVertexShader + 
+    // --- Shaders --- //
+    function generalShader() {
+        return vertexShader + 
         `
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
             return textureSample(myTexture, mySampler, input.uv);
         }
         `;
+    }
 
-    const erosionShader = genericInitShader + genericVertexShader + 
+    function erosionShader() {
+        return vertexShader + 
         `
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
@@ -74,8 +74,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return vec4<f32>(minVal, minVal, minVal, 1.0);
         }
         `;
+    }
 
-    const dilatationShader = genericInitShader + genericVertexShader + 
+    function dilatationShader() {
+        return vertexShader + 
         `
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
@@ -93,8 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return vec4<f32>(maxVal, maxVal, maxVal, 1.0);
         }
         `;
+    }
 
-    const grayScaleShader = genericInitShader + genericVertexShader +
+    function grayScaleShader() {
+        return vertexShader + 
         `
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
@@ -104,8 +108,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return vec4<f32>(promColor, promColor, promColor, color.a);
         }
         `;
+    }
 
-    const negativeShader =  genericInitShader + genericVertexShader + 
+    function negativeShader() {
+        return vertexShader + 
         `
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
@@ -116,9 +122,226 @@ document.addEventListener('DOMContentLoaded', () => {
             return vec4<f32>(r, g, b, color.a);
         }
         `;
+    }
 
+    function colorScaleShader(color) {
+        const r = parseInt(color.substring(1, 3), 16) / 255.0;
+        const g = parseInt(color.substring(3, 5), 16) / 255.0;
+        const b = parseInt(color.substring(5, 7), 16) / 255.0;
+
+        return vertexShader + 
+        `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let color = textureSample(myTexture, mySampler, input.uv);
+            let promColor = (color.r + color.g + color.b) / 3.0;
+
+            var r = ${r} * 1.0;
+            var g = ${g} * 1.0;
+            var b = ${b} * 1.0;
+
+            if (promColor < 0.5) {
+                r = r * promColor / 0.5;
+                g = g * promColor / 0.5;
+                b = b * promColor / 0.5;
+            } else {
+                r = r + (1.0 - r) * (promColor - 0.5) / 0.5;
+                g = g + (1.0 - g) * (promColor - 0.5) / 0.5;
+                b = b + (1.0 - b) * (promColor - 0.5) / 0.5;
+            }
+
+            r = clamp(r, 0.0, 1.0);
+            g = clamp(g, 0.0, 1.0);
+            b = clamp(b, 0.0, 1.0);
+
+            return vec4<f32>(r, g, b, 1.0);
+        }
+        `;
+    }
+
+    function brightnessShader(brightnessLevel) {
+        return vertexShader + 
+        `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let color = textureSample(myTexture, mySampler, input.uv);
+            var r = color.r + ${brightnessLevel};
+            var g = color.g + ${brightnessLevel};
+            var b = color.b + ${brightnessLevel};
+
+            r = clamp(r, 0.0, 1.0);
+            g = clamp(g, 0.0, 1.0);
+            b = clamp(b, 0.0, 1.0);
+
+            return vec4<f32>(r, g, b, color.a);
+        }
+        `;
+    }
+
+    function contrastShader(contrastLevel) {
+        return vertexShader + 
+        `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let color = textureSample(myTexture, mySampler, input.uv);
+            var r = (color.r - 0.5) * ${contrastLevel} + 0.5;
+            var g = (color.g - 0.5) * ${contrastLevel} + 0.5;
+            var b = (color.b - 0.5) * ${contrastLevel} + 0.5;
+
+            r = clamp(r, 0.0, 1.0);
+            g = clamp(g, 0.0, 1.0);
+            b = clamp(b, 0.0, 1.0);
+
+            return vec4<f32>(r, g, b, color.a);
+        }
+        `;
+    }
+
+    function zoomProxShader(zoomLevel) {
+        return vertexShader + 
+        `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let center = vec2<f32>(0.5, 0.5);
+            let uvZoom = (input.uv - center) / ${zoomLevel} + center;
+            let texSize = vec2<f32>(textureDimensions(myTexture, 0));
+            let uvNearest = floor(uvZoom * texSize) / texSize;
+
+            return textureSample(myTexture, mySampler, uvNearest);
+        }
+        `;
+    }
+
+    function zoomBilinealShader(zoomLevel) {
+        return vertexShader + 
+        `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let center = vec2<f32>(0.5, 0.5);
+            let uvZoom = (input.uv - center) / ${zoomLevel} + center;
+            let uvClamped = clamp(uvZoom, vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0));
+
+            return textureSample(myTexture, mySampler, uvClamped);
+        }
+        `;
+    }
+    // --- End Shaders --- //
+    // --- Utility Functions --- //
+    function goToTonalCurve() {
+        const curva = tonalCurveCalculate(imageOriginal, imageProcessed);
+        toneCurveDraw(x => curva[x]);
+    }
+
+    function tonalCurveCalculate(imgOriginal, imgProcesada) {
+        const canvasO = document.createElement('canvas');
+        const canvasP = document.createElement('canvas');
+
+        canvasO.width = imgOriginal.naturalWidth;
+        canvasO.height = imgOriginal.naturalHeight;
+        canvasP.width = imgProcesada.naturalWidth;
+        canvasP.height = imgProcesada.naturalHeight;
+
+        const ctxO = canvasO.getContext('2d');
+        const ctxP = canvasP.getContext('2d');
+        ctxO.drawImage(imgOriginal, 0, 0);
+        ctxP.drawImage(imgProcesada, 0, 0);
+
+        const dataO = ctxO.getImageData(0, 0, canvasO.width, canvasO.height).data;
+        const dataP = ctxP.getImageData(0, 0, canvasP.width, canvasP.height).data;
+
+        // Acumula la suma de salidas para cada valor de entrada
+        const sum = new Array(256).fill(0);
+        const count = new Array(256).fill(0);
+
+        for (let i = 0; i < dataO.length; i += 4) {
+            // Gris original y procesado
+            const grayO = Math.round(0.299 * dataO[i] + 0.587 * dataO[i + 1] + 0.114 * dataO[i + 2]);
+            const grayP = Math.round(0.299 * dataP[i] + 0.587 * dataP[i + 1] + 0.114 * dataP[i + 2]);
+            sum[grayO] += grayP;
+            count[grayO]++;
+        }
+
+        // Calcula el promedio de salida para cada valor de entrada
+        const curvaTonal = new Array(256).fill(0);
+        for (let i = 0; i < 256; i++) {
+            curvaTonal[i] = count[i] > 0 ? sum[i] / count[i] : 0;
+        }
+        return curvaTonal;
+    }
+
+    function toneCurveDraw(mappingFunction) {
+        const canvas = document.getElementById('tonal-curve-canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 256, 256);
+
+        ctx.beginPath();
+        ctx.moveTo(0, 256 - mappingFunction(0));
+
+        for (let x = 0; x < 255; x++) {
+            const y = mappingFunction(x);
+            ctx.lineTo(x, 256 - y);
+        }
+
+        ctx.strokeStyle = 'blue';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    function goToHistogram() {
+        histogramDraw(histogramCalculate(imageProcessed, 'rgb'), document.getElementById('histogram-rgb-canvas'), 'purple');
+        histogramDraw(histogramCalculate(imageProcessed, 'r'), document.getElementById('histogram-r-canvas'), 'red');
+        histogramDraw(histogramCalculate(imageProcessed, 'g'), document.getElementById('histogram-g-canvas'), 'green');
+        histogramDraw(histogramCalculate(imageProcessed, 'b'), document.getElementById('histogram-b-canvas'), 'blue');
+    }
+
+    function histogramCalculate(image, type) {
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        const histograma = new Array(256).fill(0);
+
+        for (let i = 0; i < data.length; i += 4) {
+            let value;
+
+            if (type === 'rgb') value = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+            if (type === 'r') value = data[i];
+            if (type === 'g') value = data[i + 1];
+            if (type === 'b') value = data[i + 2];
+
+            histograma[value]++;
+        }
+
+        return histograma;
+    }
+
+    function histogramDraw(histogram, canvas, color) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 256, 256);
+
+        const max = Math.max(...histogram);
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.2;
+
+        for (let i = 0; i < 256; i++) {
+            const barHeight = histogram[i] * 256 / max;
+
+            ctx.beginPath();
+            ctx.moveTo(i, 256);
+            ctx.lineTo(i, 256 - barHeight);
+            ctx.stroke();
+        }
+    }
+    // --- End Utility Functions --- //
+    // --- Init --- //
     function updateSidebar() {
-        // Menú lateral responsive
+        // Menu responsive
         const sidebar = document.getElementById('sidebar');
         const hamburger = document.getElementById('hamburger-btn');
 
@@ -137,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function initWebGPU(imageSrc, shaderCode, override = false) {
         const canvas = document.getElementById('gpu-canvas');
-        // Verifica soporte de WebGPU
+
         if (!navigator.gpu) {
             alert('WebGPU no es soportado en este navegador.');
             throw new Error('WebGPU no soportado');
@@ -218,71 +441,49 @@ document.addEventListener('DOMContentLoaded', () => {
                 ],
             });
 
-            // Renderiza la imagen
-            function frame() {
-                const commandEncoder = device.createCommandEncoder();
-                const textureView = context.getCurrentTexture().createView();
-                const renderPass = commandEncoder.beginRenderPass({
-                    colorAttachments: [{
-                        view: textureView,
-                        clearValue: { r: 0, g: 0, b: 0, a: 1 },
-                        loadOp: 'clear',
-                        storeOp: 'store',
-                    }],
-                });
-
-                renderPass.setPipeline(pipeline);
-                renderPass.setBindGroup(0, bindGroup);
-                renderPass.draw(6, 1, 0, 0);
-                renderPass.end();
-
-                device.queue.submit([commandEncoder.finish()]);
-
-                imageSrc = canvas.toDataURL('image/png');
-
-                if (override) {
-                    resetValues();
-                    imageProcessed.src = imageSrc;
-                    imageOriginal.src = imageSrc;
-                }
-            }
-
-            frame();
+            render(device, context, pipeline, bindGroup, canvas, override);
         } catch (e) {
             alert('Error: ' + e.message);
             console.error(e);
         }
     }
 
-    function colorToRGB(r, g, b) {
-        return genericInitShader + genericVertexShader + 
-        `
-        @fragment
-        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-            let color = textureSample(myTexture, mySampler, input.uv);
-            let promColor = (color.r + color.g + color.b) / 3.0;
+    function render(device, context, pipeline, bindGroup, canvas, override) {
+        const commandEncoder = device.createCommandEncoder();
+        const textureView = context.getCurrentTexture().createView();
+        const renderPass = commandEncoder.beginRenderPass({
+            colorAttachments: [{
+                view: textureView,
+                clearValue: { r: 0, g: 0, b: 0, a: 1 },
+                loadOp: 'clear',
+                storeOp: 'store',
+            }],
+        });
 
-            var r = ${r} * 1.0;
-            var g = ${g} * 1.0;
-            var b = ${b} * 1.0;
+        renderPass.setPipeline(pipeline);
+        renderPass.setBindGroup(0, bindGroup);
+        renderPass.draw(6, 1, 0, 0);
+        renderPass.end();
 
-            if (promColor < 0.5) {
-                r = r * promColor / 0.5;
-                g = g * promColor / 0.5;
-                b = b * promColor / 0.5;
-            } else {
-                r = r + (1.0 - r) * (promColor - 0.5) / 0.5;
-                g = g + (1.0 - g) * (promColor - 0.5) / 0.5;
-                b = b + (1.0 - b) * (promColor - 0.5) / 0.5;
-            }
+        device.queue.submit([commandEncoder.finish()]);
 
-            r = clamp(r, 0.0, 1.0);
-            g = clamp(g, 0.0, 1.0);
-            b = clamp(b, 0.0, 1.0);
+        imageSrc = canvas.toDataURL('image/png');
 
-            return vec4<f32>(r, g, b, 1.0);
+        if (override) {
+            resetValues();
+            imageProcessed.src = imageSrc;
+            // imageOriginal.src = imageSrc;
         }
-        `;
+
+        imageProcessed.onload = function() {
+            goToTonalCurve();
+            goToHistogram();
+        }
+
+        if (imageProcessed.complete) {
+            goToTonalCurve();
+            goToHistogram();
+        }
     }
 
     function getImageInfo() {
@@ -357,47 +558,10 @@ document.addEventListener('DOMContentLoaded', () => {
         fileReader.readAsArrayBuffer(file.slice(0, 5000));
     }
 
-    function getBrightnessLevel(brightnessLevel) {
-        return genericInitShader + genericVertexShader + 
-        `
-        @fragment
-        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-            let color = textureSample(myTexture, mySampler, input.uv);
-            var r = color.r + ${brightnessLevel};
-            var g = color.g + ${brightnessLevel};
-            var b = color.b + ${brightnessLevel};
-
-            r = clamp(r, 0.0, 1.0);
-            g = clamp(g, 0.0, 1.0);
-            b = clamp(b, 0.0, 1.0);
-
-            return vec4<f32>(r, g, b, color.a);
-        }
-        `;
-    }
-
-    function getContrastLevel(contrastLevel) {
-        return genericInitShader + genericVertexShader + 
-        `
-        @fragment
-        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-            let color = textureSample(myTexture, mySampler, input.uv);
-            var r = (color.r - 0.5) * ${contrastLevel} + 0.5;
-            var g = (color.g - 0.5) * ${contrastLevel} + 0.5;
-            var b = (color.b - 0.5) * ${contrastLevel} + 0.5;
-
-            r = clamp(r, 0.0, 1.0);
-            g = clamp(g, 0.0, 1.0);
-            b = clamp(b, 0.0, 1.0);
-
-            return vec4<f32>(r, g, b, color.a);
-        }
-        `;
-    }
-
     function resetValues() {
         brightnessLevel = 0;
         contrastLevel = 1;
+        zoomLevel = 1;
 
         document.getElementById('brightness-input').value = 0;
         document.getElementById('contrast-input').value = 1;
@@ -425,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     imageProcessed.src = imageSrc;
                     imageOriginal.src = imageSrc;
 
-                    initWebGPU(imageSrc, generalShader);
+                    initWebGPU(imageSrc, generalShader(), true);
                     imageInput.value = '';
                 }
             });
@@ -435,43 +599,46 @@ document.addEventListener('DOMContentLoaded', () => {
             const dilatacion = document.getElementById('menu-dilatation');
             const grayScale = document.getElementById('menu-grayscale');
             const colorScale = document.getElementById('menu-colorscale');
+            const colorPicker = document.getElementById('color-picker');
             const negative = document.getElementById('menu-negative');
             const brightnessInput = document.getElementById('brightness-input');
             const contrastInput = document.getElementById('contrast-input');
+            const zoomProxInput = document.getElementById('zoom-prox-input');
+            const zoomBilinealInput = document.getElementById('zoom-bilineal-input');
 
-            info.addEventListener('click', function(event) { getImageInfo(); });
-            erosion.addEventListener('click', function(event) { initWebGPU(imageSrc, erosionShader, true); });
-            dilatacion.addEventListener('click', function(event) { initWebGPU(imageSrc, dilatationShader, true); });
-            grayScale.addEventListener('click', function(event) { initWebGPU(imageSrc, grayScaleShader, true); });
-            colorScale.addEventListener('click', function(event) { initWebGPU(imageSrc, colorScaleShader, true); });
-            negative.addEventListener('click', function(event) { initWebGPU(imageSrc, negativeShader, true); });
+            info.addEventListener('click', (event) => { getImageInfo(); });
+            erosion.addEventListener('click', (event) => { initWebGPU(imageSrc, erosionShader(), true); });
+            dilatacion.addEventListener('click', (event) => { initWebGPU(imageSrc, dilatationShader(), true); });
+            grayScale.addEventListener('click', (event) => { initWebGPU(imageSrc, grayScaleShader(), true); });
+            colorScale.addEventListener('click', (event) => { initWebGPU(imageSrc, colorScaleShader(colorValue), true); });
+            negative.addEventListener('click', (event) => { initWebGPU(imageSrc, negativeShader(), true); });
+
+            colorPicker.addEventListener('input', (event) => { colorValue = event.target.value; });
 
             brightnessInput.addEventListener('input', (event) => {
                 brightnessLevel = parseFloat(event.target.value);
-                brightnessShader = getBrightnessLevel(brightnessLevel);
-                initWebGPU(imageOriginal.src, brightnessShader);
+                initWebGPU(imageOriginal.src, brightnessShader(brightnessLevel));
             });
 
             contrastInput.addEventListener('input', (event) => {
                 contrastLevel = parseFloat(event.target.value);
-                contrastShader = getContrastLevel(contrastLevel);
-                initWebGPU(imageOriginal.src, contrastShader);
+                initWebGPU(imageOriginal.src, contrastShader(contrastLevel));
             });
 
-            const colorPicker = document.getElementById('color-picker');
+            zoomProxInput.addEventListener('input', (event) => {
+                let zoom = parseFloat(event.target.value);
+                zoomBilinealInput.value = 1.0;
+                initWebGPU(imageSrc, zoomProxShader(zoom));
+            });
 
-            colorScaleShader = colorToRGB(1.0, 0.0, 0.0);
-
-            colorPicker.addEventListener('input', (event) => {
-                const colorValue = event.target.value;
-                const r = parseInt(colorValue.substring(1, 3), 16) / 255.0;
-                const g = parseInt(colorValue.substring(3, 5), 16) / 255.0;
-                const b = parseInt(colorValue.substring(5, 7), 16) / 255.0;
-
-                colorScaleShader = colorToRGB(r, g, b);
+            zoomBilinealInput.addEventListener('input', (event) => {
+                const zoom = parseFloat(event.target.value);
+                zoomProxInput.value = 1.0;
+                initWebGPU(imageSrc, zoomBilinealShader(zoom));
             });
         }
     }
+    // --- End Init --- //
 
     main();
 });

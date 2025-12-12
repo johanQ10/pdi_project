@@ -8,39 +8,62 @@
 </head>
 <body>
     <button class="hamburger" id="hamburger-btn" aria-label="Abrir menú">
-        <span></span>
-        <span></span>
-        <span></span>
+        <span>Hola</span>
+        <span>Chao</span>
+        <span>Como</span>
     </button>
-    <aside class="sidebar" id="sidebar">
-        <nav>
-            <a href="#" id="menu-info">Información</a>
-            <a href="#" id="menu-erosion">Erosión</a>
-            <a href="#" id="menu-dilatation">Dilatación</a>
-            <a href="#" id="menu-grayscale">Escala de Grises</a>
-            <a href="#"><span id="menu-colorscale">Escala de Color</span><input type="color" id="color-picker" value="#ff0000"></a>
-            <a href="#" id="menu-negative">Negativo</a>
-            <a href="#"><span id="menu-brightness">Brillo</span><input type="number" id="brightness-input" value="0" step="0.1" min="-1.0" max="1.0"></a>
-            <a href="#"><span id="menu-contrast">Contraste</span><input type="number" id="contrast-input" value="1" step="0.1" min="0.0" max="5.0"></a>
-            <div><span id="menu-zoom-prox">Zoom Proximo</span><input type="range" id="zoom-prox" value="1" step="0.1" min="0" max="5"></div>
-            <div><span id="menu-zoom-bilineal">Zoom Bilineal</span><input type="range" id="zoom-bilineal" value="1" step="0.1" min="0" max="5"></div>
-            <a href="#">Curva tonal</a>
-            <a href="#">Histograma</a>
-            <a href="#">Umbralización Sencilla</a>
-            <a href="#">Umbralización Múltiple</a>
-        </nav>
-    </aside>
-    <div class="main-content">
-        <div>
-            <!-- Agrega este código dentro del div.main-content en tu index.html -->
-            <div style="margin-bottom: 20px; text-align: center;">
-                <label for="image-load" class="image-upload-label">
-                    Load image
-                    <input type="file" id="image-load" accept="image/*" style="display:none;">
-                </label>
+
+    <div class="layout-3col">
+        <aside class="sidebar" id="sidebar">
+            <nav>
+                <a href="#" id="menu-info"><b>Información</b></a>
+                <a href="#" id="menu-erosion"><b>Erosión</b></a>
+                <a href="#" id="menu-dilatation"><b>Dilatación</b></a>
+                <a href="#" id="menu-grayscale"><b>Escala de Grises</b></a>
+                <a href="#"><span id="menu-colorscale"><b>Escala de Color</b></span><input type="color" id="color-picker" value="#ff0000"></a>
+                <a href="#" id="menu-negative"><b>Negativo</b></a>
+                <a href="#"><span id="menu-brightness"><b>Brillo</b></span><input type="number" id="brightness-input" value="0" step="0.1" min="-1.0" max="1.0"></a>
+                <a href="#"><span id="menu-contrast"><b>Contraste</b></span><input type="number" id="contrast-input" value="1" step="0.1" min="0.0" max="10.0"></a>
+                <a href="#"><span id="menu-zoom-prox"><b>Zoom Proximo</b></span><input type="number" id="zoom-prox-input" value="1" step="0.1" min="0.0" max="10.0"></a>
+                <a href="#"><span id="menu-zoom-bilineal"><b>Zoom Bilineal</b></span><input type="number" id="zoom-bilineal-input" value="1" step="0.1" min="0.0" max="10.0"></a>
+                <a href="#" id="menu-tonal-curve"><b>Curva tonal</b></a>
+                <a href="#"><b>Umbralización Sencilla</b></a>
+                <a href="#"><b>Umbralización Múltiple</b></a>
+            </nav>
+        </aside>
+        <div class="main-content">
+            <div>
+                <div style="margin-bottom: 20px; text-align: center;">
+                    <label for="image-load" class="image-upload-label">
+                        Load image
+                        <input type="file" id="image-load" accept="image/*" style="display:none;">
+                    </label>
+                </div>
+                <canvas id="gpu-canvas" width="0px" height="0px" style="display: none;"></canvas>
             </div>
-            <canvas id="gpu-canvas" width="0px" height="0px" style="display: none;"></canvas>
         </div>
+        <aside class="rightbar">
+            <div class="right-title-canvas" style="margin-top: 10px;">
+                <strong>Curva Tonal</strong>
+            </div>
+            <canvas id="tonal-curve-canvas" class="right-canvas" width="256" height="256"></canvas>
+            <div class="right-title-canvas">
+                <strong>Histograma RGB</strong>
+            </div>
+            <canvas id="histogram-rgb-canvas" class="right-canvas" width="256" height="256"></canvas>
+            <div class="right-title-canvas">
+                <strong>Histograma R</strong>
+            </div>
+            <canvas id="histogram-r-canvas" class="right-canvas" width="256" height="256"></canvas>
+            <div class="right-title-canvas">
+                <strong>Histograma G</strong>
+            </div>
+            <canvas id="histogram-g-canvas" class="right-canvas" width="256" height="256"></canvas>
+            <div class="right-title-canvas">
+                <strong>Histograma B</strong>
+            </div>
+            <canvas id="histogram-b-canvas" class="right-canvas" width="256" height="256"></canvas>
+        </aside>
     </div>
 </body>
 </html>
