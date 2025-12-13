@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let imageSrc; // Imagen por defecto
     let imageOriginal;
     let imageProcessed;
+    let imageTemporal;
     let context;
     let bitsPerPixel = 0;
     let brightnessLevel = 0;
@@ -225,29 +226,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         `;
     }
+
+    function gammaShader(gammaValue) {
+        return vertexShader + 
+        `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let color = textureSample(myTexture, mySampler, input.uv);
+            var r = pow(color.r, 1.0 / ${gammaValue});
+            var g = pow(color.g, 1.0 / ${gammaValue});
+            var b = pow(color.b, 1.0 / ${gammaValue});
+
+            r = clamp(r, 0.0, 1.0);
+            g = clamp(g, 0.0, 1.0);
+            b = clamp(b, 0.0, 1.0);
+
+            return vec4<f32>(r, g, b, color.a);
+        }
+        `;
+    }
     // --- End Shaders --- //
     // --- Utility Functions --- //
     function goToTonalCurve() {
-        const curva = tonalCurveCalculate(imageOriginal, imageProcessed);
+        const curva = tonalCurveCalculate(imageOriginal, imageTemporal);
         toneCurveDraw(x => curva[x]);
     }
 
-    function tonalCurveCalculate(imgOriginal, imgProcesada) {
+    function tonalCurveCalculate(imgOriginal, imgTemporal) {
         const canvasO = document.createElement('canvas');
-        const canvasP = document.createElement('canvas');
+        const canvasT = document.createElement('canvas');
 
         canvasO.width = imgOriginal.naturalWidth;
         canvasO.height = imgOriginal.naturalHeight;
-        canvasP.width = imgProcesada.naturalWidth;
-        canvasP.height = imgProcesada.naturalHeight;
+        canvasT.width = imgTemporal.naturalWidth;
+        canvasT.height = imgTemporal.naturalHeight;
 
         const ctxO = canvasO.getContext('2d');
-        const ctxP = canvasP.getContext('2d');
+        const ctxT = canvasT.getContext('2d');
+
         ctxO.drawImage(imgOriginal, 0, 0);
-        ctxP.drawImage(imgProcesada, 0, 0);
+        ctxT.drawImage(imgTemporal, 0, 0);
 
         const dataO = ctxO.getImageData(0, 0, canvasO.width, canvasO.height).data;
-        const dataP = ctxP.getImageData(0, 0, canvasP.width, canvasP.height).data;
+        const dataT = ctxT.getImageData(0, 0, canvasT.width, canvasT.height).data;
 
         // Acumula la suma de salidas para cada valor de entrada
         const sum = new Array(256).fill(0);
@@ -256,17 +277,19 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < dataO.length; i += 4) {
             // Gris original y procesado
             const grayO = Math.round(0.299 * dataO[i] + 0.587 * dataO[i + 1] + 0.114 * dataO[i + 2]);
-            const grayP = Math.round(0.299 * dataP[i] + 0.587 * dataP[i + 1] + 0.114 * dataP[i + 2]);
-            sum[grayO] += grayP;
+            const grayT = Math.round(0.299 * dataT[i] + 0.587 * dataT[i + 1] + 0.114 * dataT[i + 2]);
+
+            sum[grayO] += grayT;
             count[grayO]++;
         }
 
         // Calcula el promedio de salida para cada valor de entrada
-        const curvaTonal = new Array(256).fill(0);
-        for (let i = 0; i < 256; i++) {
-            curvaTonal[i] = count[i] > 0 ? sum[i] / count[i] : 0;
-        }
-        return curvaTonal;
+        const tonalCurve = new Array(256).fill(0);
+
+        for (let i = 0; i < 256; i++)
+            tonalCurve[i] = count[i] > 0 ? sum[i] / count[i] : 0;
+
+        return tonalCurve;
     }
 
     function toneCurveDraw(mappingFunction) {
@@ -277,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.beginPath();
         ctx.moveTo(0, 256 - mappingFunction(0));
 
-        for (let x = 0; x < 255; x++) {
+        for (let x = 0; x < 256; x++) {
             const y = mappingFunction(x);
             ctx.lineTo(x, 256 - y);
         }
@@ -358,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function initWebGPU(imageSrc, shaderCode, override = false) {
+    async function initWebGPU(shaderCode, override = false) {
         const canvas = document.getElementById('gpu-canvas');
 
         if (!navigator.gpu) {
@@ -472,15 +495,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (override) {
             resetValues();
             imageProcessed.src = imageSrc;
-            // imageOriginal.src = imageSrc;
         }
 
-        imageProcessed.onload = function() {
+        imageTemporal.src = imageSrc;
+
+        imageTemporal.onload = function() {
             goToTonalCurve();
             goToHistogram();
         }
 
-        if (imageProcessed.complete) {
+        if (imageTemporal.complete) {
             goToTonalCurve();
             goToHistogram();
         }
@@ -583,13 +607,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     imageProcessed = new Image();
                     imageOriginal = new Image();
+                    imageTemporal = new Image();
 
                     imageSrc = URL.createObjectURL(file);
 
                     imageProcessed.src = imageSrc;
                     imageOriginal.src = imageSrc;
+                    imageTemporal.src = imageSrc;
 
-                    initWebGPU(imageSrc, generalShader(), true);
+                    initWebGPU(generalShader(), true);
                     imageInput.value = '';
                 }
             });
@@ -605,36 +631,42 @@ document.addEventListener('DOMContentLoaded', () => {
             const contrastInput = document.getElementById('contrast-input');
             const zoomProxInput = document.getElementById('zoom-prox-input');
             const zoomBilinealInput = document.getElementById('zoom-bilineal-input');
+            const gammaInput = document.getElementById('gamma-input');
 
             info.addEventListener('click', (event) => { getImageInfo(); });
-            erosion.addEventListener('click', (event) => { initWebGPU(imageSrc, erosionShader(), true); });
-            dilatacion.addEventListener('click', (event) => { initWebGPU(imageSrc, dilatationShader(), true); });
-            grayScale.addEventListener('click', (event) => { initWebGPU(imageSrc, grayScaleShader(), true); });
-            colorScale.addEventListener('click', (event) => { initWebGPU(imageSrc, colorScaleShader(colorValue), true); });
-            negative.addEventListener('click', (event) => { initWebGPU(imageSrc, negativeShader(), true); });
+            erosion.addEventListener('click', (event) => { initWebGPU(erosionShader(), true); });
+            dilatacion.addEventListener('click', (event) => { initWebGPU(dilatationShader(), true); });
+            grayScale.addEventListener('click', (event) => { initWebGPU(grayScaleShader(), true); });
+            colorScale.addEventListener('click', (event) => { initWebGPU(colorScaleShader(colorValue), true); });
+            negative.addEventListener('click', (event) => { initWebGPU(negativeShader(), true); });
 
             colorPicker.addEventListener('input', (event) => { colorValue = event.target.value; });
 
             brightnessInput.addEventListener('input', (event) => {
                 brightnessLevel = parseFloat(event.target.value);
-                initWebGPU(imageOriginal.src, brightnessShader(brightnessLevel));
+                initWebGPU(brightnessShader(brightnessLevel));
             });
 
             contrastInput.addEventListener('input', (event) => {
                 contrastLevel = parseFloat(event.target.value);
-                initWebGPU(imageOriginal.src, contrastShader(contrastLevel));
+                initWebGPU(contrastShader(contrastLevel));
             });
 
             zoomProxInput.addEventListener('input', (event) => {
                 let zoom = parseFloat(event.target.value);
                 zoomBilinealInput.value = 1.0;
-                initWebGPU(imageSrc, zoomProxShader(zoom));
+                initWebGPU(zoomProxShader(zoom));
             });
 
             zoomBilinealInput.addEventListener('input', (event) => {
                 const zoom = parseFloat(event.target.value);
                 zoomProxInput.value = 1.0;
-                initWebGPU(imageSrc, zoomBilinealShader(zoom));
+                initWebGPU(zoomBilinealShader(zoom));
+            });
+
+            gammaInput.addEventListener('input', (event) => {
+                const gammaValue = parseFloat(event.target.value);
+                initWebGPU(gammaShader(gammaValue));
             });
         }
     }
