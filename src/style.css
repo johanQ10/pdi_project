@@ -57,6 +57,8 @@ body {
     border-width: 0px 0px 1px 0px;
     border-color: white;
     border-style: solid;
+    min-height: 30px;
+    align-content: center;
 }
 .sidebar a:hover, .sidebar div:hover {
     background: crimson;
@@ -134,12 +136,24 @@ body {
 }
 .image-upload-label {
     cursor: pointer;
-    background: #0a2342;
     color: #fff;
     padding: 8px 16px;
     margin: 10px;
     border-radius: 4px;
     font-family: 'Montserrat', Arial, sans-serif;
+    background: linear-gradient(90deg, #0a2342 0%, #1976d2 100%);
+    box-shadow: 0 2px 8px rgba(10, 35, 66, 0.08);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    letter-spacing: 1px;
+    border-width: 1px;
+    border-color: white;
+    border-style: solid;
+}
+.image-upload-label:hover {
+    background: linear-gradient(90deg, #1976d2 0%, #0a2342 100%);
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 4px 16px rgba(10,35,66,0.15);
 }
 #color-picker {
     width: 25px;
@@ -149,6 +163,7 @@ body {
 .input-style {
     margin-left: 10px;
     width: 40px;
+    border-radius: 5px;
 }
 .rightbar {
     width: 290px;
@@ -169,4 +184,26 @@ body {
     text-align:center;
     margin-bottom:10px;
     color: #fff;
+}
+.menu-btn {
+    background: linear-gradient(90deg, #0a2342 0%, #1976d2 100%);
+    color: #fff;
+    font-family: 'Montserrat', Arial, sans-serif;
+    font-size: 0.8em;
+    font-weight: bold;
+    padding: 5px 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(10, 35, 66, 0.08);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    letter-spacing: 1px;
+    border-width: 1px;
+    border-color: white;
+    border-style: solid;
+    margin-left: 5px;
+}
+.menu-btn:hover {
+    background: linear-gradient(90deg, #1976d2 0%, #0a2342 100%);
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 4px 16px rgba(10,35,66,0.15);
 }

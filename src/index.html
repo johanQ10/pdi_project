@@ -9,8 +9,6 @@
 <body>
     <button class="hamburger" id="hamburger-btn" aria-label="Abrir menú">
         <span>Hola</span>
-        <span>Chao</span>
-        <span>Como</span>
     </button>
 
     <div class="layout-3col">
@@ -27,8 +25,30 @@
                 <a href="#"><span id="menu-zoom-prox"><b>Zoom Proximo</b></span><input type="number" id="zoom-prox-input" class="input-style" value="1" step="0.1" min="0.0" max="10.0"></a>
                 <a href="#"><span id="menu-zoom-bilineal"><b>Zoom Bilineal</b></span><input type="number" id="zoom-bilineal-input" class="input-style" value="1" step="0.1" min="0.0" max="10.0"></a>
                 <a href="#"><span id="menu-gamma"><b>Gamma</b></span><input type="number" id="gamma-input" class="input-style" value="1" step="0.1" min="0.0" max="5.0"></a>
-                <a href="#"><b>Umbralización Sencilla</b></a>
-                <a href="#"><b>Umbralización Múltiple</b></a>
+                <a href="#">
+                    <b>Umbralizar</b>
+                    <span>
+                        <button id="umbral-simple-btn" type="button" class="menu-btn" style="margin-top: 5px;">S</button>
+                        <button id="umbral-multiple-btn" type="button" class="menu-btn">M</button>
+                    </span>
+                </a>
+                <a href="#" id="menu-flip">
+                    <b>Flip</b>
+                    <span>
+                        <button id="flip-horizontal-btn" type="button" class="menu-btn">Hor.</button>
+                        <button id="flip-vertical-btn" type="button" class="menu-btn">Ver.</button>
+                    </span>
+                </a>
+                <a href="#">
+                    <b>Rotar</b>
+                    <input type="number" id="rotate-input" class="input-style" value="1" step="0.1" min="0.0" max="5.0">
+                    <span>
+                        <button id="rotate-btn" type="button" class="menu-btn" style="margin-top: 5px;">Go</button>
+                        <br>
+                        <button id="rotate-left-btn" type="button" class="menu-btn" style="margin-top: 5px;">-90°</button>
+                        <button id="rotate-right-btn" type="button" class="menu-btn">90°</button>
+                    </span>
+                </a>
             </nav>
         </aside>
         <div class="main-content">

@@ -64,12 +64,12 @@ document.addEventListener('DOMContentLoaded', () => {
             let texSize = vec2<f32>(textureDimensions(myTexture, 0));
             let pixel = input.uv * texSize;
             var minVal = 1.0;
-            for(var dy: i32 = -1; dy <= 1; dy++) {
-                for(var dx: i32 = -1; dx <= 1; dx++) {
-                    let coord = (pixel + vec2<f32>(f32(dx), f32(dy))) / texSize;
+            for(var y: i32 = -1; y <= 1; y++) {
+                for(var x: i32 = -1; x <= 1; x++) {
+                    let coord = (pixel + vec2<f32>(f32(x), f32(y))) / texSize;
                     let color = textureSample(myTexture, mySampler, coord);
-                    // Para escala de grises, usa solo un canal (ejemplo: .r)
-                    minVal = min(minVal, color.r);
+                    let prom = (color.r + color.g + color.b) / 3.0;
+                    minVal = min(minVal, prom);
                 }
             }
             return vec4<f32>(minVal, minVal, minVal, 1.0);
@@ -85,12 +85,12 @@ document.addEventListener('DOMContentLoaded', () => {
             let texSize = vec2<f32>(textureDimensions(myTexture, 0));
             let pixel = input.uv * texSize;
             var maxVal = 0.0;
-            for(var dy: i32 = -1; dy <= 1; dy++) {
-                for(var dx: i32 = -1; dx <= 1; dx++) {
-                    let coord = (pixel + vec2<f32>(f32(dx), f32(dy))) / texSize;
+            for(var y: i32 = -1; y <= 1; y++) {
+                for(var x: i32 = -1; x <= 1; x++) {
+                    let coord = (pixel + vec2<f32>(f32(x), f32(y))) / texSize;
                     let color = textureSample(myTexture, mySampler, coord);
-                    // Para escala de grises, usa solo un canal (ejemplo: .r)
-                    maxVal = max(maxVal, color.r);
+                    let prom = (color.r + color.g + color.b) / 3.0;
+                    maxVal = max(maxVal, prom);
                 }
             }
             return vec4<f32>(maxVal, maxVal, maxVal, 1.0);
@@ -245,6 +245,47 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         `;
     }
+
+    function flipHorizontalShader() {
+        return vertexShader + 
+        `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let uvFlipped = vec2<f32>(1.0 - input.uv.x, input.uv.y);
+            let color = textureSample(myTexture, mySampler, uvFlipped);
+            return color;
+        }
+        `;
+    }
+
+    function flipVerticalShader() {
+        return vertexShader + 
+        `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let uvFlipped = vec2<f32>(input.uv.x, 1.0 - input.uv.y);
+            let color = textureSample(myTexture, mySampler, uvFlipped);
+            return color;
+        }
+        `;
+    }
+
+    function rotateShader(value) {
+        return vertexShader + 
+        `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            var uvRotate;
+            if (${value} > 0) {
+                uvRotate = vec2<f32>(input.uv.y, 1.0 - input.uv.x);
+            } else {
+                uvRotate = vec2<f32>(input.uv.y, 1.0 - input.uv.x);
+            }
+            let color = textureSample(myTexture, mySampler, uvRotate);
+            return color;
+        }
+        `;
+    }
     // --- End Shaders --- //
     // --- Utility Functions --- //
     function goToTonalCurve() {
@@ -311,16 +352,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function goToHistogram() {
-        histogramDraw(histogramCalculate(imageProcessed, 'rgb'), document.getElementById('histogram-rgb-canvas'), 'purple');
-        histogramDraw(histogramCalculate(imageProcessed, 'r'), document.getElementById('histogram-r-canvas'), 'red');
-        histogramDraw(histogramCalculate(imageProcessed, 'g'), document.getElementById('histogram-g-canvas'), 'green');
-        histogramDraw(histogramCalculate(imageProcessed, 'b'), document.getElementById('histogram-b-canvas'), 'blue');
+        histogramDraw(histogramCalculate(imageTemporal, 'rgb'), document.getElementById('histogram-rgb-canvas'), 'purple');
+        histogramDraw(histogramCalculate(imageTemporal, 'r'), document.getElementById('histogram-r-canvas'), 'red');
+        histogramDraw(histogramCalculate(imageTemporal, 'g'), document.getElementById('histogram-g-canvas'), 'green');
+        histogramDraw(histogramCalculate(imageTemporal, 'b'), document.getElementById('histogram-b-canvas'), 'blue');
     }
 
     function histogramCalculate(image, type) {
         const canvas = document.createElement('canvas');
         canvas.width = image.naturalWidth;
         canvas.height = image.naturalHeight;
+
         const ctx = canvas.getContext('2d');
         ctx.drawImage(image, 0, 0);
 
@@ -382,6 +424,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function initWebGPU(shaderCode, override = false) {
+        let image;
+
+        // if (override)
+            image = imageProcessed;
+        // else image = imageTemporal;
+
+
         const canvas = document.getElementById('gpu-canvas');
 
         if (!navigator.gpu) {
@@ -401,10 +450,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // Carga la imagen
-            await imageProcessed.decode();
+            await image.decode();
 
             // Crea un bitmap de la imagen
-            const imageBitmap = await createImageBitmap(imageProcessed);
+            const imageBitmap = await createImageBitmap(image);
 
             // Ajusta el tamaño del canvas al de la imagen
             canvas.width = imageBitmap.width;
@@ -632,6 +681,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const zoomProxInput = document.getElementById('zoom-prox-input');
             const zoomBilinealInput = document.getElementById('zoom-bilineal-input');
             const gammaInput = document.getElementById('gamma-input');
+            const flipHorizontalBtn = document.getElementById('flip-horizontal-btn');
+            const flipVerticalBtn = document.getElementById('flip-vertical-btn');
+            const rotateLeftBtn = document.getElementById('rotate-left-btn');
+            const rotateRightBtn = document.getElementById('rotate-right-btn');
 
             info.addEventListener('click', (event) => { getImageInfo(); });
             erosion.addEventListener('click', (event) => { initWebGPU(erosionShader(), true); });
@@ -639,6 +692,10 @@ document.addEventListener('DOMContentLoaded', () => {
             grayScale.addEventListener('click', (event) => { initWebGPU(grayScaleShader(), true); });
             colorScale.addEventListener('click', (event) => { initWebGPU(colorScaleShader(colorValue), true); });
             negative.addEventListener('click', (event) => { initWebGPU(negativeShader(), true); });
+            flipHorizontalBtn.addEventListener('click', (event) => { initWebGPU(flipHorizontalShader(), true); });
+            flipVerticalBtn.addEventListener('click', (event) => { initWebGPU(flipVerticalShader(), true); });
+            rotateLeftBtn.addEventListener('click', (event) => { initWebGPU(rotateShader(-90), true); });
+            rotateRightBtn.addEventListener('click', (event) => { initWebGPU(rotateShader(90), true); });
 
             colorPicker.addEventListener('input', (event) => { colorValue = event.target.value; });
 
