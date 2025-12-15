@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', updateSidebar);
 
-    let imageSrc; // Imagen por defecto
+    let imageSrc;
     let imageOriginal;
     let imageProcessed;
     let imageTemporal;
@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let brightnessLevel = 0;
     let contrastLevel = 1;
     let colorValue = "#ff0000";
+    let rotate = false;
 
     let vertexShader = `
         @group(0) @binding(0) var mySampler: sampler;
@@ -46,12 +47,23 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
     // --- Shaders --- //
-    function generalShader() {
-        return vertexShader + 
-        `
+    function generalShader(imgWidth, imgHeight, canvasSize) {
+        // Calcula los márgenes en UV
+        const offsetX = (canvasSize - imgWidth) / 2 / canvasSize;
+        const offsetY = (canvasSize - imgHeight) / 2 / canvasSize;
+        const scaleX = imgWidth / canvasSize;
+        const scaleY = imgHeight / canvasSize;
+
+        return vertexShader + `
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
             return textureSample(myTexture, mySampler, input.uv);
+            // let uv = input.uv;
+            // let imgUV = vec2<f32>((uv.x - ${offsetX}) / ${scaleX}, (uv.y - ${offsetY}) / ${scaleY});
+            // let inImage = all(imgUV >= vec2<f32>(0.0, 0.0)) && all(imgUV <= vec2<f32>(1.0, 1.0));
+            // let color = textureSample(myTexture, mySampler, clamp(imgUV, vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0)));
+            // let mask = f32(inImage);
+            // return vec4<f32>(color.rgb * mask, color.a * mask) + vec4<f32>(0.0, 0.0, 0.0, 1.0) * (1.0 - mask);
         }
         `;
     }
@@ -271,16 +283,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function rotateShader(value) {
+        if (value / 90 % 2 != 0)
+            rotate = true;
+        else rotate = false;
+
+        let diff = value / 90;
+
+        if (diff < 0)
+            diff = -diff;
+
+        while (diff > 3) {
+            diff -= 4;
+        }
+
         return vertexShader + 
         `
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-            var uvRotate;
+            var uvRotate = vec2<f32>(input.uv.x, input.uv.y);
+
             if (${value} > 0) {
-                uvRotate = vec2<f32>(input.uv.y, 1.0 - input.uv.x);
+                if (${diff} == 1.0) {
+                    uvRotate = vec2<f32>(input.uv.y, 1.0 - input.uv.x);
+                } 
+                else if (${diff} == 2.0) {
+                    uvRotate = vec2<f32>(1.0 -input.uv.x, 1.0 - input.uv.y);
+                }
+                else if (${diff} == 3.0) {
+                    uvRotate = vec2<f32>(1.0 - input.uv.y, input.uv.x);
+                }
             } else {
-                uvRotate = vec2<f32>(input.uv.y, 1.0 - input.uv.x);
+                if (${diff} == 1.0) {
+                    uvRotate = vec2<f32>(1.0 - input.uv.y, input.uv.x);
+                } 
+                else if (${diff} == 2.0) {
+                    uvRotate = vec2<f32>(1.0 -input.uv.x, 1.0 - input.uv.y);
+                }
+                else if (${diff} == 3.0) {
+                    uvRotate = vec2<f32>(input.uv.y, 1.0 - input.uv.x);
+                }
             }
+
             let color = textureSample(myTexture, mySampler, uvRotate);
             return color;
         }
@@ -405,31 +448,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // --- End Utility Functions --- //
     // --- Init --- //
-    function updateSidebar() {
-        // Menu responsive
-        const sidebar = document.getElementById('sidebar');
-        const hamburger = document.getElementById('hamburger-btn');
-
-        hamburger.addEventListener('click', () => {
-            sidebar.classList.toggle('show');
-            sidebar.classList.toggle('hide');
-        });
-
-        if (window.innerWidth <= 700) {
-            sidebar.classList.add('hide');
-        } else {
-            sidebar.classList.remove('hide');
-            sidebar.classList.remove('show');
-        }
-    }
-
     async function initWebGPU(shaderCode, override = false) {
         let image;
 
         // if (override)
             image = imageProcessed;
         // else image = imageTemporal;
-
 
         const canvas = document.getElementById('gpu-canvas');
 
@@ -456,8 +480,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const imageBitmap = await createImageBitmap(image);
 
             // Ajusta el tamaño del canvas al de la imagen
-            canvas.width = imageBitmap.width;
-            canvas.height = imageBitmap.height;
+            let max = imageBitmap.width;
+
+            if (max < imageBitmap.height) 
+                max = imageBitmap.height;
+
+            if (rotate) {
+                canvas.width = imageBitmap.height;
+                canvas.height = imageBitmap.width;
+                rotate = false;
+            } else {
+                canvas.width = imageBitmap.width;
+                canvas.height = imageBitmap.height;
+            }
+            // canvas.width = imageBitmap.width;
+            // canvas.height = imageBitmap.height;
 
             // Crea una textura a partir del bitmap
             const texture = device.createTexture({
@@ -520,6 +557,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updateSidebar() {
+        // Menu responsive
+        const sidebar = document.getElementById('sidebar');
+        const hamburger = document.getElementById('hamburger-btn');
+
+        hamburger.addEventListener('click', () => {
+            sidebar.classList.toggle('show');
+            sidebar.classList.toggle('hide');
+        });
+
+        if (window.innerWidth <= 700) {
+            sidebar.classList.add('hide');
+        } else {
+            sidebar.classList.remove('hide');
+            sidebar.classList.remove('show');
+        }
+    }
+
     function render(device, context, pipeline, bindGroup, canvas, override) {
         const commandEncoder = device.createCommandEncoder();
         const textureView = context.getCurrentTexture().createView();
@@ -561,14 +616,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getImageInfo() {
         const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+        canvas.width = imageProcessed.naturalWidth;
+        canvas.height = imageProcessed.naturalHeight;
 
         const ctx = canvas.getContext('2d');
 
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(imageProcessed, 0, 0);
 
-        const imageData = ctx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
+        const imageData = ctx.getImageData(0, 0, imageProcessed.naturalWidth, imageProcessed.naturalHeight);
         const data = imageData.data;
 
         const colors = new Set();
@@ -580,7 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         alert(`
             IMAGEN
-            Dimensiones: ${img.naturalWidth} x ${img.naturalHeight} px
+            Dimensiones: ${imageProcessed.naturalWidth} x ${imageProcessed.naturalHeight} px
             Bit por píxel: ${bitsPerPixel} bits,
             Colores únicos: ${colors.size}
         `);
@@ -652,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (file) {
                     getBitsPerPixel(file);
 
-                    document.getElementById('gpu-canvas').style.display = 'flex';
+                    document.getElementById('gpu-canvas').style.display = 'inline-block';
 
                     imageProcessed = new Image();
                     imageOriginal = new Image();
@@ -664,8 +719,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     imageOriginal.src = imageSrc;
                     imageTemporal.src = imageSrc;
 
-                    initWebGPU(generalShader(), true);
-                    imageInput.value = '';
+                    imageOriginal.onload = function() {
+                        let maxImg = imageOriginal.naturalWidth;
+
+                        if (maxImg < imageOriginal.naturalHeight)
+                            maxImg = imageOriginal.naturalHeight;
+
+                        initWebGPU(generalShader(imageOriginal.naturalWidth, imageOriginal.naturalHeight, maxImg), true);
+                        imageInput.value = '';
+                    }
                 }
             });
 
@@ -683,6 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const gammaInput = document.getElementById('gamma-input');
             const flipHorizontalBtn = document.getElementById('flip-horizontal-btn');
             const flipVerticalBtn = document.getElementById('flip-vertical-btn');
+            const rotateBtn = document.getElementById('rotate-btn');
             const rotateLeftBtn = document.getElementById('rotate-left-btn');
             const rotateRightBtn = document.getElementById('rotate-right-btn');
 
@@ -694,6 +757,23 @@ document.addEventListener('DOMContentLoaded', () => {
             negative.addEventListener('click', (event) => { initWebGPU(negativeShader(), true); });
             flipHorizontalBtn.addEventListener('click', (event) => { initWebGPU(flipHorizontalShader(), true); });
             flipVerticalBtn.addEventListener('click', (event) => { initWebGPU(flipVerticalShader(), true); });
+
+            rotateBtn.addEventListener('click', (event) => {
+                let input = document.getElementById('rotate-input');
+                let value = parseInt(input.value);
+
+                const mod = value % 90;
+
+                if (mod >= 45)
+                    value += (90 - mod);
+                else
+                    value -= mod;
+
+                input.value = value;
+
+                if (value !== 0)
+                    initWebGPU(rotateShader(value), true); 
+            });
             rotateLeftBtn.addEventListener('click', (event) => { initWebGPU(rotateShader(-90), true); });
             rotateRightBtn.addEventListener('click', (event) => { initWebGPU(rotateShader(90), true); });
 
