@@ -386,6 +386,110 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
+    // Filter Shaders
+    function filterShader(kernel, kw, kh) {
+        return vertexShader +
+            `
+            @fragment
+            fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+                let texSize = vec2<f32>(textureDimensions(myTexture, 0));
+                let pixel = input.uv * texSize; // coordenada de pixel a modificar
+                var result = vec3<f32>(0.0, 0.0, 0.0);
+
+                let kernel = array<array<f32, ${kw}>, ${kh}>(
+                    ${kernel}
+                );
+
+                let kHalfX = ${Math.floor(kw / 2)};
+                let kHalfY = ${Math.floor(kh / 2)};
+
+                for (var y: i32 = 0; y < ${kh}; y = y + 1) {
+                    for (var x: i32 = 0; x < ${kw}; x = x + 1) {
+                        let offset = vec2<f32>(f32(x - kHalfX), f32(y - kHalfY)); // ancla
+                        let coord = (pixel + offset) / texSize; // coordenada de pixel vecino
+                        let color = textureSample(myTexture, mySampler, clamp(coord, vec2<f32>(0.0), vec2<f32>(1.0))); // color del pixel vecino
+                        let k = kernel[y][x]; // valor del kernel, mosca con indices negativos
+
+                        result = result + vec3<f32>(color.r * k, color.g * k, color.b * k);
+                    }
+                }
+                result = clamp(result, vec3<f32>(0.0), vec3<f32>(1.0));
+                return vec4<f32>(result, 1.0);   
+            }
+            `;
+    }
+
+    function borderShader(mKernelX, mKernelY, kw, kh) {
+        let kernelX = '';
+        let kernelY = '';
+
+        for (let i = 0; i < kh; i++) {
+            kernelX += 'array<f32, ' + kw + '>(';
+            for (let j = 0; j < kw; j++) {
+                kernelX += mKernelX[i][j];
+                if (j < kw - 1)
+                    kernelX += ', ';
+            }
+            kernelX += '),\n';
+        }
+
+        for (let i = 0; i < kh; i++) {
+            kernelY += 'array<f32, ' + kw + '>(';
+            for (let j = 0; j < kw; j++) {
+                kernelY += mKernelY[i][j];
+                if (j < kw - 1)
+                    kernelY += ', ';
+            }
+            kernelY += '),\n';
+        }
+
+        return vertexShader +
+            `
+            @fragment
+            fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+                let texSize = vec2<f32>(textureDimensions(myTexture, 0));
+                let pixel = input.uv * texSize; // coordenada de pixel a modificar
+                var resultX = vec3<f32>(0.0, 0.0, 0.0);
+                var resultY = vec3<f32>(0.0, 0.0, 0.0);
+
+                let kernelX = array<array<f32, ${kw}>, ${kh}>(
+                    ${kernelX}
+                );
+                let kernelY = array<array<f32, ${kw}>, ${kh}>(
+                    ${kernelY}
+                );
+
+                let kHalfX = ${Math.floor(kw / 2)};
+                let kHalfY = ${Math.floor(kh / 2)};
+
+                for (var y: i32 = 0; y < ${kh}; y = y + 1) {
+                    for (var x: i32 = 0; x < ${kw}; x = x + 1) {
+                        let offset = vec2<f32>(f32(x - kHalfX), f32(y - kHalfY));
+                        let coord = (pixel + offset) / texSize;
+                        let color = textureSample(myTexture, mySampler, clamp(coord, vec2<f32>(0.0), vec2<f32>(1.0)));
+                        let k = kernelX[y][x];
+
+                        resultX = resultX + vec3<f32>(color.r * k, color.g * k, color.b * k);
+                    }
+                }
+                for (var y: i32 = 0; y < ${kh}; y = y + 1) {
+                    for (var x: i32 = 0; x < ${kw}; x = x + 1) {
+                        let offset = vec2<f32>(f32(x - kHalfX), f32(y - kHalfY));
+                        let coord = (pixel + offset) / texSize;
+                        let color = textureSample(myTexture, mySampler, clamp(coord, vec2<f32>(0.0), vec2<f32>(1.0)));
+                        let k = kernelY[y][x];
+
+                        resultY = resultY + vec3<f32>(color.r * k, color.g * k, color.b * k);
+                    }
+                }
+
+                var result = sqrt(resultX * resultX + resultY * resultY);
+                result = clamp(result, vec3<f32>(0.0), vec3<f32>(1.0));
+                return vec4<f32>(result, 1.0);   
+            }
+            `;
+    }
+
     function averageShader(kw, kh) {
         let kernel = '';
         let count = kw * kh;
@@ -528,36 +632,173 @@ document.addEventListener('DOMContentLoaded', () => {
         return filterShader(kernel, kw, kh);
     }
 
-    function filterShader(kernel, kw, kh) {
-        return vertexShader +
-            `
-            @fragment
-            fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-                let texSize = vec2<f32>(textureDimensions(myTexture, 0));
-                let pixel = input.uv * texSize; // coordenada de pixel a modificar
-                var result = vec3<f32>(0.0, 0.0, 0.0);
+    function prewittShader(kw, kh) {
+        const prewittX = [];
+        const prewittY = [];
 
-                let kernel = array<array<f32, ${kw}>, ${kh}>(
-                    ${kernel}
-                );
+        let parX = 0;
+        let parY = 0;
 
-                let kHalfX = ${Math.floor(kw / 2)};
-                let kHalfY = ${Math.floor(kh / 2)};
+        if (kw % 2 == 0) parX = 1;
+        if (kh % 2 == 0) parY = 1;
 
-                for (var y: i32 = 0; y < ${kh}; y = y + 1) {
-                    for (var x: i32 = 0; x < ${kw}; x = x + 1) {
-                        let offset = vec2<f32>(f32(x - kHalfX), f32(y - kHalfY)); // ancla
-                        let coord = (pixel + offset) / texSize; // coordenada de pixel vecino
-                        let color = textureSample(myTexture, mySampler, clamp(coord, vec2<f32>(0.0), vec2<f32>(1.0))); // color del pixel vecino
-                        let k = kernel[y][x]; // valor del kernel, mosca con indices negativos
+        for (let i = 0; i < kh; i++) {
+            const fileX = [];
+            const fileY = [];
 
-                        result = result + vec3<f32>(color.r * k, color.g * k, color.b * k);
+            for (let j = 0; j < kw; j++) {
+                if (parX) {
+                    if (j < Math.floor(kw / 2))
+                        fileX.push(-1);
+                    else if (j >= Math.floor(kw / 2))
+                        fileX.push(1);
+                } else {
+                    if (j < Math.floor(kw / 2))
+                        fileX.push(-1);
+                    else if (j > Math.floor(kw / 2))
+                        fileX.push(1);
+                    else fileX.push(0);
+                }
+
+                if (parY) {
+                    if (i < Math.floor(kh / 2))
+                        fileY.push(-1);
+                    else if (i >= Math.floor(kh / 2))
+                        fileY.push(1);
+                } else {
+                    if (i < Math.floor(kh / 2))
+                        fileY.push(-1);
+                    else if (i > Math.floor(kh / 2))
+                        fileY.push(1);
+                    else fileY.push(0);
+                }
+            }
+            prewittX.push(fileX);
+            prewittY.push(fileY);
+        }
+
+        return borderShader(prewittX, prewittY, kw, kh);
+    }
+
+    function sobelShader(kw, kh) {
+        const sobelX = [];
+        const sobelY = [];
+
+        let parX_X = 0;
+        let parY_X = 0;
+        let parX_Y = 0;
+        let parY_Y = 0;
+
+        if (kw % 2 == 0) parX_X = 1;
+        if (kh % 2 == 0) parY_X = 1;
+        if (kw % 2 == 0) parX_Y = 1;
+        if (kh % 2 == 0) parY_Y = 1;
+
+        let x_X = 1;
+        let y_X = 1;
+
+        let x_Y = 1;
+        let y_Y = 1;
+
+        const midX = Math.floor(kw / 2);
+
+        for (let i = 0; i < kh; i++) {
+            const fileX = [];
+            const fileY = [];
+
+            for (let j = 0; j < kw; j++) {
+                if (parX_X) {
+                    if (j < midX) {
+                        fileX.push(-x_X);
+
+                        if (j < midX - 1)
+                            x_X++;
+                    } else if (j >= midX) {
+                        fileX.push(x_X);
+                        x_X--;
+                    }
+                } else {
+                    if (j < midX) {
+                        fileX.push(-x_X);
+                        x_X++;
+                    } else if (j > midX) {
+                        fileX.push(x_X);
+                        x_X--;
+                    } else {
+                        fileX.push(0);
+                        x_X--;
                     }
                 }
-                result = clamp(result, vec3<f32>(0.0), vec3<f32>(1.0));
-                return vec4<f32>(result, 1.0);   
+
+                if (parX_Y) {
+                    let value = x_Y;
+
+                    if (i == midX && !parY_Y)
+                        fileY.push(0);
+                    else {
+                        if (i < midX)
+                            value = -value;
+
+                        if (j < midX) {
+                            fileY.push(value);
+
+                            if (j < midX - 1)
+                                x_Y++;
+                        } else if (j >= midX) {
+                            fileY.push(value);
+                            x_Y--;
+                        }
+                    }
+                } else {
+                    let value = x_Y;
+
+                    if (i == midX && !parY_Y)
+                        fileY.push(0);
+                    else {
+                        if (i < midX)
+                            value = -value;
+
+                        if (j < midX) {
+                            fileY.push(value);
+                            x_Y++;
+                        } else {
+                            fileY.push(value);
+                            x_Y--;
+                        }
+                    }
+                }
             }
-            `;
+
+            if (parY_X) {
+                if (i < midX - 1)
+                    y_X++;
+                else if (i > midX - 1)
+                    y_X--;
+            } else {
+                if (i < midX)
+                    y_X++;
+                else y_X--;
+            }
+
+            if (parY_Y) {
+                if (i < midX - 1)
+                    y_Y++;
+                else if (i > midX - 1)
+                    y_Y--;
+            } else {
+                if (i < midX)
+                    y_Y++;
+                else y_Y--;
+            }
+
+            sobelX.push(fileX);
+            sobelY.push(fileY);
+
+            x_X = y_X;
+            x_Y = y_Y;
+        }
+
+        return borderShader(sobelX, sobelY, kw, kh);
     }
     // --- End Shaders --- //
     // --- Utility Functions --- //
@@ -924,6 +1165,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('contrast-input').value = 1;
     }
 
+    function isValidKernel(x, y) {
+        if (x < 1 || y < 1 || x > 7 || y > 7 || (x == 1 && y == 1)) {
+            alert('Tiene que ser minimo 2x1 o 1x2 y maximo 7x7');
+            return false;
+        }
+        return true;
+    }
+
     function main() {
         updateSidebar();
 
@@ -1049,39 +1298,44 @@ document.addEventListener('DOMContentLoaded', () => {
             const average = document.getElementById('menu-average');
             const median = document.getElementById('menu-median');
             const gaussian = document.getElementById('menu-gaussian');
+            const prewitt = document.getElementById('menu-prewitt');
+            const sobel = document.getElementById('menu-sobel');
+            const scharr = document.getElementById('menu-scharr');
 
             average.addEventListener('click', (event) => {
-                const x = document.getElementById('average-input-x').value;
-                const y = document.getElementById('average-input-y').value;
+                const x = document.getElementById('average-input-x').value
+                const y = document.getElementById('average-input-y').value
 
-                if (x < 1 || y < 1 || x > 7 || y > 7 || (x == 1 && y == 1)) {
-                    alert('Tiene que ser minimo 2x1 o 1x2 y maximo 7x7');
-                    return;
-                }
-
-                initWebGPU(averageShader(x, y), true);
+                if (isValidKernel(x, y))
+                    initWebGPU(averageShader(x, y), true);
             });
             median.addEventListener('click', (event) => {
-                const x = document.getElementById('median-input-x').value;
-                const y = document.getElementById('median-input-y').value;
+                const x = document.getElementById('median-input-x').value
+                const y = document.getElementById('median-input-y').value
 
-                if (x < 1 || y < 1 || x > 7 || y > 7 || (x == 1 && y == 1)) {
-                    alert('Tiene que ser minimo 2x1 o 1x2 y maximo 7x7');
-                    return;
-                }
-
-                initWebGPU(medianShader(x, y), true);
+                if (isValidKernel(x, y))
+                    initWebGPU(medianShader(x, y), true);
             });
             gaussian.addEventListener('click', (event) => {
-                const x = document.getElementById('gaussian-input-x').value;
-                const y = document.getElementById('gaussian-input-y').value;
+                const x = document.getElementById('gaussian-input-x').value
+                const y = document.getElementById('gaussian-input-y').value
 
-                if (x < 1 || y < 1 || x > 7 || y > 7 || (x == 1 && y == 1)) {
-                    alert('Tiene que ser minimo 2x1 o 1x2 y maximo 7x7');
-                    return;
-                }
+                if (isValidKernel(x, y))
+                    initWebGPU(gaussianShader(x, y), true);
+            });
+            prewitt.addEventListener('click', (event) => {
+                const x = document.getElementById('prewitt-input-x').value
+                const y = document.getElementById('prewitt-input-y').value
 
-                initWebGPU(gaussianShader(x, y), true);
+                if (isValidKernel(x, y))
+                    initWebGPU(prewittShader(x, y), true);
+            });
+            sobel.addEventListener('click', (event) => {
+                const x = document.getElementById('sobel-input-x').value
+                const y = document.getElementById('sobel-input-y').value
+
+                if (isValidKernel(x, y))
+                    initWebGPU(sobelShader(x, y), true);
             });
         }
     }
