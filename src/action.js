@@ -121,7 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return vec4<f32>(promColor, promColor, promColor, color.a);
         }
         `;
-        if (type === 'rgb') value = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
     }
 
     function negativeShader() {
@@ -276,6 +275,43 @@ document.addEventListener('DOMContentLoaded', () => {
             return vec4<f32>(promColor, promColor, promColor, color.a);
         }
         `;
+    }
+
+    function umbralMultipleShader(umbrales) {
+        let conditions = `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let color = textureSample(myTexture, mySampler, input.uv);
+            var promColor = 0.21 * color.r + 0.72 * color.g + 0.07 * color.b;`;
+
+        umbrales.sort((a, b) => a - b);
+
+        let prev = 0.0;
+        let binary = 0.0;
+
+        for (let i = 0; i < umbrales.length; i++) {
+            const umbral = umbrales[i];
+            conditions += `
+            if (promColor >= ${prev} && promColor < ${umbral}) {
+                promColor = ${binary};
+            }
+            `;
+            prev = umbral;
+            binary = 1.0 - binary;
+        }
+
+        conditions += `
+            if (promColor >= ${prev} && promColor < ${1.0}) {
+                promColor = ${binary};
+            }
+            `;
+
+        conditions += `
+            return vec4<f32>(promColor, promColor, promColor, color.a);
+        }
+        `;
+
+        return vertexShader + conditions;
     }
 
     function flipHorizontalShader() {
@@ -436,8 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (let i = 0; i < data.length; i += 4) {
             let value;
-
-            if (type === 'rgb') value = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+            if (type === 'rgb') value = Math.round(0.21 * data[i] + 0.72 * data[i + 1] + 0.07 * data[i + 2]);
             if (type === 'r') value = data[i];
             if (type === 'g') value = data[i + 1];
             if (type === 'b') value = data[i + 2];
@@ -769,6 +804,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const rotateLeftBtn = document.getElementById('rotate-left-btn');
             const rotateRightBtn = document.getElementById('rotate-right-btn');
             const umbralSimpleBtn = document.getElementById('umbral-simple-btn');
+            const umbralMultipleBtn = document.getElementById('umbral-multiple-btn');
 
             info.addEventListener('click', (event) => { getImageInfo(); });
             erosion.addEventListener('click', (event) => { initWebGPU(erosionShader(), true); });
@@ -779,6 +815,13 @@ document.addEventListener('DOMContentLoaded', () => {
             flipHorizontalBtn.addEventListener('click', (event) => { initWebGPU(flipHorizontalShader(), true); });
             flipVerticalBtn.addEventListener('click', (event) => { initWebGPU(flipVerticalShader(), true); });
             umbralSimpleBtn.addEventListener('click', (event) => { initWebGPU(umbralSimpleShader(document.getElementById('umbral-simple-input').value), true); });
+
+            umbralMultipleBtn.addEventListener('click', (event) => {
+                const input = document.getElementById('umbral-multiple-input').value;
+                const values = input.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v) && v >= 0.0 && v <= 1.0);
+
+                initWebGPU(umbralMultipleShader(values), true); 
+            });
 
             rotateBtn.addEventListener('click', (event) => {
                 let input = document.getElementById('rotate-input');
