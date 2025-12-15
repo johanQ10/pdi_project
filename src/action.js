@@ -385,6 +385,180 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         `;
     }
+
+    function averageShader(kw, kh) {
+        let kernel = '';
+        let count = kw * kh;
+
+        for (let i = 0; i < kh; i++) {
+            kernel += '    array<f32, ' + kw + '>(';
+            for (let j = 0; j < kw; j++) {
+                kernel += '1.0 / ' + count.toString();
+
+                if (j < kw - 1)
+                    kernel += ', ';
+            }
+            kernel += '),\n';
+        }
+
+        return filterShader(kernel, kw, kh);
+    }
+
+    function medianShader(kw, kh) {
+        let kernel = '';
+
+        for (let i = 0; i < kh; i++) {
+            kernel += '    array<f32, ' + kw + '>(';
+            for (let j = 0; j < kw; j++) {
+                kernel += '1.0';
+
+                if (j < kw - 1)
+                    kernel += ', ';
+            }
+            kernel += '),\n';
+        }
+
+        return vertexShader +
+            `
+            @fragment
+            fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+                let texSize = vec2<f32>(textureDimensions(myTexture, 0));
+                let pixel = input.uv * texSize; // coordenada de pixel a modificar
+                var result = vec3<f32>(0.0, 0.0, 0.0);
+
+                let kernel = array<array<f32, ${kw}>, ${kh}>(
+                    ${kernel}
+                );
+                var values = array<vec3<f32>, ${kw * kh}>();
+                var index = 0;
+
+                let kHalfX = ${Math.floor(kw / 2)};
+                let kHalfY = ${Math.floor(kh / 2)};
+
+                for (var y: i32 = 0; y < ${kh}; y = y + 1) {
+                    for (var x: i32 = 0; x < ${kw}; x = x + 1) {
+                        let offset = vec2<f32>(f32(x - kHalfX), f32(y - kHalfY));
+                        let coord = (pixel + offset) / texSize;
+                        let color = textureSample(myTexture, mySampler, clamp(coord, vec2<f32>(0.0), vec2<f32>(1.0)));
+                        let k = kernel[y][x];
+
+                        values[index] = vec3<f32>(color.r * k, color.g * k, color.b * k);
+                        index = index + 1;
+                    }
+                }
+
+                for (var i: i32 = 0; i < ${kw * kh} - 1; i = i + 1) {
+                    for (var j: i32 = 0; j < ${kw * kh} - 1 - i; j = j + 1) {
+                        let valueJ = (values[j].r + values[j].g + values[j].b) / 3.0;
+                        let valueJ1 = (values[j + 1].r + values[j + 1].g + values[j + 1].b) / 3.0;
+
+                        if (valueJ > valueJ1) {
+                            let tmp = values[j];
+                            values[j] = values[j + 1];
+                            values[j + 1] = tmp;
+                        }
+                    }
+                }
+                
+                result = values[index / 2];
+                result = clamp(result, vec3<f32>(0.0), vec3<f32>(1.0));
+                return vec4<f32>(result, 1.0);   
+            }
+            `;
+    }
+
+    function gaussianShader(kw, kh) {
+        let kernel = '';
+        let x = 1;
+        let y = 1;
+        let parX = 0;
+        let parY = 0;
+        let sum = 0;
+
+        const matrix = [];
+
+        if (kw % 2 == 0) parX = 1;
+        if (kh % 2 == 0) parY = 1;
+
+        for (let i = 0; i < kh; i++) {
+            const file = [];
+
+            for (let j = 0; j < kw; j++) {
+                file.push(x);
+                sum += x;
+
+                if (parX) {
+                    if (j < Math.floor(kw / 2) - 1)
+                        x++;
+                    else if (j > Math.floor(kw / 2) - 1)
+                        x--;
+                } else {
+                    if (j < Math.floor(kw / 2))
+                        x++;
+                    else x--;
+                }
+            }
+
+            if (parY) {
+                if (i < Math.floor(kh / 2) - 1)
+                    y++;
+                else if (i > Math.floor(kh / 2) - 1)
+                    y--;
+            } else {
+                if (i < Math.floor(kh / 2))
+                    y++;
+                else y--;
+            }
+
+            x = y;
+
+            matrix.push(file);
+        }
+
+        for (let i = 0; i < kh; i++) {
+            kernel += 'array<f32, ' + kw + '>(';
+            for (let j = 0; j < kw; j++) {
+                kernel += (matrix[i][j] / sum).toFixed(6);
+                if (j < kw - 1)
+                    kernel += ', ';
+            }
+            kernel += '),\n';
+        }
+
+        return filterShader(kernel, kw, kh);
+    }
+
+    function filterShader(kernel, kw, kh) {
+        return vertexShader +
+            `
+            @fragment
+            fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+                let texSize = vec2<f32>(textureDimensions(myTexture, 0));
+                let pixel = input.uv * texSize; // coordenada de pixel a modificar
+                var result = vec3<f32>(0.0, 0.0, 0.0);
+
+                let kernel = array<array<f32, ${kw}>, ${kh}>(
+                    ${kernel}
+                );
+
+                let kHalfX = ${Math.floor(kw / 2)};
+                let kHalfY = ${Math.floor(kh / 2)};
+
+                for (var y: i32 = 0; y < ${kh}; y = y + 1) {
+                    for (var x: i32 = 0; x < ${kw}; x = x + 1) {
+                        let offset = vec2<f32>(f32(x - kHalfX), f32(y - kHalfY)); // ancla
+                        let coord = (pixel + offset) / texSize; // coordenada de pixel vecino
+                        let color = textureSample(myTexture, mySampler, clamp(coord, vec2<f32>(0.0), vec2<f32>(1.0))); // color del pixel vecino
+                        let k = kernel[y][x]; // valor del kernel, mosca con indices negativos
+
+                        result = result + vec3<f32>(color.r * k, color.g * k, color.b * k);
+                    }
+                }
+                result = clamp(result, vec3<f32>(0.0), vec3<f32>(1.0));
+                return vec4<f32>(result, 1.0);   
+            }
+            `;
+    }
     // --- End Shaders --- //
     // --- Utility Functions --- //
     function goToTonalCurve() {
@@ -869,6 +1043,45 @@ document.addEventListener('DOMContentLoaded', () => {
             gammaInput.addEventListener('input', (event) => {
                 const gammaValue = parseFloat(event.target.value);
                 initWebGPU(gammaShader(gammaValue));
+            });
+
+
+            const average = document.getElementById('menu-average');
+            const median = document.getElementById('menu-median');
+            const gaussian = document.getElementById('menu-gaussian');
+
+            average.addEventListener('click', (event) => {
+                const x = document.getElementById('average-input-x').value;
+                const y = document.getElementById('average-input-y').value;
+
+                if (x < 1 || y < 1 || x > 7 || y > 7 || (x == 1 && y == 1)) {
+                    alert('Tiene que ser minimo 2x1 o 1x2 y maximo 7x7');
+                    return;
+                }
+
+                initWebGPU(averageShader(x, y), true);
+            });
+            median.addEventListener('click', (event) => {
+                const x = document.getElementById('median-input-x').value;
+                const y = document.getElementById('median-input-y').value;
+
+                if (x < 1 || y < 1 || x > 7 || y > 7 || (x == 1 && y == 1)) {
+                    alert('Tiene que ser minimo 2x1 o 1x2 y maximo 7x7');
+                    return;
+                }
+
+                initWebGPU(medianShader(x, y), true);
+            });
+            gaussian.addEventListener('click', (event) => {
+                const x = document.getElementById('gaussian-input-x').value;
+                const y = document.getElementById('gaussian-input-y').value;
+
+                if (x < 1 || y < 1 || x > 7 || y > 7 || (x == 1 && y == 1)) {
+                    alert('Tiene que ser minimo 2x1 o 1x2 y maximo 7x7');
+                    return;
+                }
+
+                initWebGPU(gaussianShader(x, y), true);
             });
         }
     }
