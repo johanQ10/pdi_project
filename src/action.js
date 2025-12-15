@@ -116,11 +116,12 @@ document.addEventListener('DOMContentLoaded', () => {
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
             let color = textureSample(myTexture, mySampler, input.uv);
-            let promColor = dot(color.rgb, vec3<f32>(0.21, 0.72, 0.07));
+            let promColor = 0.21 * color.r + 0.72 * color.g + 0.07 * color.b;
             // let promColor = (color.r + color.g + color.b) / 3.0;
             return vec4<f32>(promColor, promColor, promColor, color.a);
         }
         `;
+        if (type === 'rgb') value = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
     }
 
     function negativeShader() {
@@ -147,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
             let color = textureSample(myTexture, mySampler, input.uv);
-            let promColor = (color.r + color.g + color.b) / 3.0;
+            let promColor = 0.21 * color.r + 0.72 * color.g + 0.07 * color.b;
 
             var r = ${r} * 1.0;
             var g = ${g} * 1.0;
@@ -254,6 +255,25 @@ document.addEventListener('DOMContentLoaded', () => {
             b = clamp(b, 0.0, 1.0);
 
             return vec4<f32>(r, g, b, color.a);
+        }
+        `;
+    }
+
+    function umbralSimpleShader(umbral) {
+        return vertexShader + 
+        `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let color = textureSample(myTexture, mySampler, input.uv);
+            var promColor = 0.21 * color.r + 0.72 * color.g + 0.07 * color.b;
+
+            if (promColor < ${umbral}) {
+                promColor = 0.0;
+            } else {
+                promColor = 1.0;
+            }
+
+            return vec4<f32>(promColor, promColor, promColor, color.a);
         }
         `;
     }
@@ -748,6 +768,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const rotateBtn = document.getElementById('rotate-btn');
             const rotateLeftBtn = document.getElementById('rotate-left-btn');
             const rotateRightBtn = document.getElementById('rotate-right-btn');
+            const umbralSimpleBtn = document.getElementById('umbral-simple-btn');
 
             info.addEventListener('click', (event) => { getImageInfo(); });
             erosion.addEventListener('click', (event) => { initWebGPU(erosionShader(), true); });
@@ -757,6 +778,7 @@ document.addEventListener('DOMContentLoaded', () => {
             negative.addEventListener('click', (event) => { initWebGPU(negativeShader(), true); });
             flipHorizontalBtn.addEventListener('click', (event) => { initWebGPU(flipHorizontalShader(), true); });
             flipVerticalBtn.addEventListener('click', (event) => { initWebGPU(flipVerticalShader(), true); });
+            umbralSimpleBtn.addEventListener('click', (event) => { initWebGPU(umbralSimpleShader(document.getElementById('umbral-simple-input').value), true); });
 
             rotateBtn.addEventListener('click', (event) => {
                 let input = document.getElementById('rotate-input');
