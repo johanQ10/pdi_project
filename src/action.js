@@ -416,7 +416,7 @@ function filterShader(kernel, kw, kh) {
         `;
 }
 
-function borderShader(mKernelX, mKernelY, kw, kh) {
+function borderShader(mKernelX, mKernelY, kw, kh, direction) {
     let kernelX = '';
     let kernelY = '';
 
@@ -440,7 +440,7 @@ function borderShader(mKernelX, mKernelY, kw, kh) {
         kernelY += '),\n';
     }
 
-    return vertexShader +
+    const conditions =
         `
         @fragment
         fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
@@ -479,12 +479,35 @@ function borderShader(mKernelX, mKernelY, kw, kh) {
                     resultY = resultY + vec3<f32>(color.r * k, color.g * k, color.b * k);
                 }
             }
+            `; 
 
-            var result = sqrt(resultX * resultX + resultY * resultY);
-            result = clamp(result, vec3<f32>(0.0), vec3<f32>(1.0));
-            return vec4<f32>(result, 1.0);   
+        let finalPart;
+        
+        if (direction === 'h') {
+            finalPart = `      
+                var result = resultX;
+                result = clamp(result, vec3<f32>(0.0), vec3<f32>(1.0));
+                return vec4<f32>(result, 1.0);   
+            }
+            `;
+        } else if (direction === 'v') {
+            finalPart = `      
+                var result = resultY;
+                result = clamp(result, vec3<f32>(0.0), vec3<f32>(1.0));
+                return vec4<f32>(result, 1.0);   
+            }
+            `;
+        } else {
+            finalPart = `      
+                var result = sqrt(resultX * resultX + resultY * resultY);
+                result = clamp(result, vec3<f32>(0.0), vec3<f32>(1.0));
+                return vec4<f32>(result, 1.0);   
+            }
+            `;
         }
-        `;
+
+
+        return vertexShader + conditions + finalPart;
 }
 
 function averageShader(kw, kh) {
@@ -631,7 +654,7 @@ function gaussianShader(kw, kh) {
     return filterShader(kernel, kw, kh);
 }
 
-function prewittShader(kw, kh) {
+function prewittShader(kw, kh, direction) {
     const prewittX = [];
     const prewittY = [];
 
@@ -676,10 +699,10 @@ function prewittShader(kw, kh) {
         prewittY.push(fileY);
     }
 
-    return borderShader(prewittX, prewittY, kw, kh);
+    return borderShader(prewittX, prewittY, kw, kh, direction);
 }
 
-function sobelShader(kw, kh) {
+function sobelShader(kw, kh, direction) {
     const sobelX = [];
     const sobelY = [];
 
@@ -797,10 +820,10 @@ function sobelShader(kw, kh) {
         x_Y = y_Y;
     }
 
-    return borderShader(sobelX, sobelY, kw, kh);
+    return borderShader(sobelX, sobelY, kw, kh, direction);
 }
 
-function robertsShader(kw, kh) {
+function robertsShader(kw, kh, direction) {
     const robertsX = [];
     const robertsY = [];
 
@@ -821,7 +844,124 @@ function robertsShader(kw, kh) {
     robertsY[0][kw - 1] = 1;
     robertsY[kh - 1][0] = -1;
 
-    return borderShader(robertsX, robertsY, kw, kh);
+    return borderShader(robertsX, robertsY, kw, kh, direction);
+}
+
+function gradientShader(kw, kh) {
+    const prewittX = [];
+    const prewittY = [];
+
+    let parX = 0;
+    let parY = 0;
+
+    if (kw % 2 == 0) parX = 1;
+    if (kh % 2 == 0) parY = 1;
+
+    for (let i = 0; i < kh; i++) {
+        const fileX = [];
+        const fileY = [];
+
+        for (let j = 0; j < kw; j++) {
+            if (parX) {
+                if (j < Math.floor(kw / 2))
+                    fileX.push(-1);
+                else if (j >= Math.floor(kw / 2))
+                    fileX.push(1);
+            } else {
+                if (j < Math.floor(kw / 2))
+                    fileX.push(-1);
+                else if (j > Math.floor(kw / 2))
+                    fileX.push(1);
+                else fileX.push(0);
+            }
+
+            if (parY) {
+                if (i < Math.floor(kh / 2))
+                    fileY.push(-1);
+                else if (i >= Math.floor(kh / 2))
+                    fileY.push(1);
+            } else {
+                if (i < Math.floor(kh / 2))
+                    fileY.push(-1);
+                else if (i > Math.floor(kh / 2))
+                    fileY.push(1);
+                else fileY.push(0);
+            }
+        }
+        prewittX.push(fileX);
+        prewittY.push(fileY);
+    }
+
+    let kernelX = '';
+    let kernelY = '';
+
+    for (let i = 0; i < kh; i++) {
+        kernelX += 'array<f32, ' + kw + '>(';
+        for (let j = 0; j < kw; j++) {
+            kernelX += prewittX[i][j];
+            if (j < kw - 1)
+                kernelX += ', ';
+        }
+        kernelX += '),\n';
+    }
+
+    for (let i = 0; i < kh; i++) {
+        kernelY += 'array<f32, ' + kw + '>(';
+        for (let j = 0; j < kw; j++) {
+            kernelY += prewittY[i][j];
+            if (j < kw - 1)
+                kernelY += ', ';
+        }
+        kernelY += '),\n';
+    }
+
+    return vertexShader +
+        `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let texSize = vec2<f32>(textureDimensions(myTexture, 0));
+            let pixel = input.uv * texSize; // coordenada de pixel a modificar
+            var resultX = vec3<f32>(0.0, 0.0, 0.0);
+            var resultY = vec3<f32>(0.0, 0.0, 0.0);
+
+            let kernelX = array<array<f32, ${kw}>, ${kh}>(
+                ${kernelX}
+            );
+            let kernelY = array<array<f32, ${kw}>, ${kh}>(
+                ${kernelY}
+            );
+
+            let kHalfX = ${Math.floor(kw / 2)};
+            let kHalfY = ${Math.floor(kh / 2)};
+
+            for (var y: i32 = 0; y < ${kh}; y = y + 1) {
+                for (var x: i32 = 0; x < ${kw}; x = x + 1) {
+                    let offset = vec2<f32>(f32(x - kHalfX), f32(y - kHalfY));
+                    let coord = (pixel + offset) / texSize;
+                    let color = textureSample(myTexture, mySampler, clamp(coord, vec2<f32>(0.0), vec2<f32>(1.0)));
+                    let prom = 0.21 * color.r + 0.72 * color.g + 0.07 * color.b;
+                    let k = kernelX[y][x];
+
+                    resultX = resultX + vec3<f32>(prom * k, prom * k, prom * k);
+                }
+            }
+            for (var y: i32 = 0; y < ${kh}; y = y + 1) {
+                for (var x: i32 = 0; x < ${kw}; x = x + 1) {
+                    let offset = vec2<f32>(f32(x - kHalfX), f32(y - kHalfY));
+                    let coord = (pixel + offset) / texSize;
+                    let color = textureSample(myTexture, mySampler, clamp(coord, vec2<f32>(0.0), vec2<f32>(1.0)));
+                    let prom = 0.21 * color.r + 0.72 * color.g + 0.07 * color.b;
+                    let k = kernelY[y][x];
+
+                    resultY = resultY + vec3<f32>(prom * k, prom * k, prom * k);
+                }
+            }
+
+            var result = sqrt(resultX * resultX + resultY * resultY);
+            result = clamp(result, vec3<f32>(0.0), vec3<f32>(1.0));
+            return vec4<f32>(result, 1.0);   
+        }
+        `;
 }
 
 function sharpenShader(kw, kh) {
@@ -1969,6 +2109,7 @@ async function main() {
         const prewitt = document.getElementById('menu-prewitt');
         const sobel = document.getElementById('menu-sobel');
         const roberts = document.getElementById('menu-roberts');
+        const gradient = document.getElementById('menu-gradient');
         const sharpen = document.getElementById('menu-sharpen');
 
         average.addEventListener('click', (event) => {
@@ -1995,23 +2136,33 @@ async function main() {
         prewitt.addEventListener('click', (event) => {
             const x = parseInt(document.getElementById('prewitt-input-x').value)
             const y = parseInt(document.getElementById('prewitt-input-y').value)
+            const dir = document.querySelector('input[name="prewitt-direction"]:checked').value;
 
             if (isValidKernel(x, y))
-                initWebGPU(prewittShader(x, y), true);
+                initWebGPU(prewittShader(x, y, dir), true);
         });
         sobel.addEventListener('click', (event) => {
             const x = parseInt(document.getElementById('sobel-input-x').value)
             const y = parseInt(document.getElementById('sobel-input-y').value)
+            const dir = document.querySelector('input[name="sobel-direction"]:checked').value;
 
             if (isValidKernel(x, y))
-                initWebGPU(sobelShader(x, y), true);
+                initWebGPU(sobelShader(x, y, dir), true);
         });
         roberts.addEventListener('click', (event) => {
             const x = parseInt(document.getElementById('roberts-input-x').value)
             const y = parseInt(document.getElementById('roberts-input-y').value)
+            const dir = document.querySelector('input[name="roberts-direction"]:checked').value;
 
             if (isValidKernel(x, y))
-                initWebGPU(robertsShader(x, y), true);
+                initWebGPU(robertsShader(x, y, dir), true);
+        });
+        gradient.addEventListener('click', (event) => {
+            const x = parseInt(document.getElementById('gradient-input-x').value)
+            const y = parseInt(document.getElementById('gradient-input-y').value)
+
+            if (isValidKernel(x, y))
+                initWebGPU(gradientShader(x, y), true);
         });
         sharpen.addEventListener('click', (event) => { 
             const x = parseInt(document.getElementById('sharpen-input-x').value)
