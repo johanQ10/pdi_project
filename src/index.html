@@ -152,12 +152,13 @@
             <div style="width: 100%;">
                 <div style="margin-bottom: 20px; text-align: center;">
                     <label for="image-load" class="image-upload-label">
-                        Cargar imagen
-                        <input type="file" id="image-load" accept="image/*" style="display:none;">
+                        Load Image
+                        <input type="file" id="image-load" accept="image/*,.pbm,.pgm,.ppm,.rle" style="display:none;">
                     </label>
-                    <label for="save-netpbm" class="image-upload-label" onClick="saveNetpbm()">Guardar Netpbm</label>
-                    <label for="save-png" class="image-upload-label" onClick="savePng()">Guardar PNG</label>
-                    <label for="save-bmp" class="image-upload-label" onClick="saveBmp()">Guardar BMP</label>
+                    <label for="save-netpbm" class="image-upload-label" onClick="saveNetpbm()">Save Netpbm</label>
+                    <label for="save-png" class="image-upload-label" onClick="savePng()">Save PNG</label>
+                    <label for="save-bmp" class="image-upload-label" onClick="saveBmp()">Save BMP</label>
+                    <label for="save-rle" class="image-upload-label" onClick="saveRle()">Save RLE</label>
                 </div>
                 <div style="justify-items: center;">
                     <canvas id="gpu-canvas" style="display: none;"></canvas>

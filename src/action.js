@@ -1,4 +1,3 @@
-
 let imageSrc;
 let imageOriginal;
 let imageProcessed;
@@ -1214,16 +1213,9 @@ function detectImageType(imageData) {
         if (!isGray && !isBinary) break;
     }
 
-    if (isBinary) {
-        alert('b');
-        return 'b';
-    }
-    if (isGray) {
-        alert('g');
-        return 'g';
-    }
+    if (isBinary) return 'b';
+    if (isGray) return 'g';
 
-    alert('c');
     return 'c';
 }
 
@@ -1343,66 +1335,39 @@ function saveBmp() {
         alert('Para exportar BMP, incluye canvas-to-bmp.js en tu proyecto.');
     }
 }
-// --- End Image Functions --- //
 
-// --- Utility Functions --- //
-function updateSidebar() {
-    // Menu responsive
-    const sidebar = document.getElementById('sidebar');
-    const hamburger = document.getElementById('hamburger-btn');
+function saveRle() {
+    const image = imageTemporal;
+    const width = image.naturalWidth;
+    const height = image.naturalHeight;
 
-    hamburger.addEventListener('click', () => {
-        sidebar.classList.toggle('show');
-        sidebar.classList.toggle('hide');
-    });
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
 
-    if (window.innerWidth <= 700) {
-        sidebar.classList.add('hide');
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(image, 0, 0);
+
+    const imageData = ctx.getImageData(0, 0, width, height).data;
+    const type = detectImageType(imageData);
+
+    let netpbmData = '';
+
+    if (type === 'b') {
+        netpbmData = exportPBM(imageData, width, height);
+    } else if (type === 'g') {
+        netpbmData = exportPGM(imageData, width, height);
     } else {
-        sidebar.classList.remove('hide');
-        sidebar.classList.remove('show');
-    }
-}
-
-function render(device, context, pipeline, bindGroup, canvas, override) {
-    const commandEncoder = device.createCommandEncoder();
-    const textureView = context.getCurrentTexture().createView();
-    const renderPass = commandEncoder.beginRenderPass({
-        colorAttachments: [{
-            view: textureView,
-            clearValue: { r: 0, g: 0, b: 0, a: 1 },
-            loadOp: 'clear',
-            storeOp: 'store',
-        }],
-    });
-
-    renderPass.setPipeline(pipeline);
-    renderPass.setBindGroup(0, bindGroup);
-    renderPass.draw(6, 1, 0, 0);
-    renderPass.end();
-
-    device.queue.submit([commandEncoder.finish()]);
-
-    imageSrc = canvas.toDataURL('image/png');
-
-    if (override) {
-        resetValues();
-        imageProcessed.src = imageSrc;
+        netpbmData = exportPPM(imageData, width, height);
     }
 
-    imageTemporal.src = imageSrc;
-
-    imageTemporal.onload = function() {
-        profileCurveLine();
-        goToTonalCurve();
-        goToHistogram();
-    }
-
-    if (imageTemporal.complete) {
-        profileCurveLine();
-        goToTonalCurve();
-        goToHistogram();
-    }
+    const rleText = rleCompressNetpbm(netpbmData);
+    console.log(rleText);
+    const blob = new Blob([rleText], { type: 'text/plain' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'imageRle.rle';
+    link.click();
 }
 
 function getImageInfo() {
@@ -1475,6 +1440,254 @@ function getBitsPerPixel(file) {
     };
 
     fileReader.readAsArrayBuffer(file.slice(0, 5000));
+}
+
+function handleNetpbmFileInput(file) {
+    return new Promise((resolve, reject) => {
+        const fileReader = new FileReader();
+
+        fileReader.onload = function(e) {
+            const data = e.target.result;
+            const netpbmData = parseNetpbm(data);
+            
+            const imageData = new ImageData(netpbmData.width, netpbmData.height);
+            let index = 0;
+
+            for (let i = 0; i < netpbmData.width * netpbmData.height; i++) {
+                let r, g, b;
+
+                if (netpbmData.type === 'P1') { // PBM (binary)
+                    r = g = b = netpbmData.data[i] === 0 ? 255 : 0;
+                    bitsPerPixel = 1;
+                } else if (netpbmData.type === 'P2') { // PGM (gray)
+                    r = g = b = Math.round(netpbmData.data[i] * 255 / netpbmData.maxVal);
+                    bitsPerPixel = 8;
+                } else if (netpbmData.type === 'P3') { // PPM (color)
+                    r = Math.round(netpbmData.data[index++] * 255 / netpbmData.maxVal);
+                    g = Math.round(netpbmData.data[index++] * 255 / netpbmData.maxVal);
+                    b = Math.round(netpbmData.data[index++] * 255 / netpbmData.maxVal);
+                    bitsPerPixel = 24;
+                }
+                if (netpbmData.type !== 'P3') 
+                    index++;
+
+                imageData.data[(i) * 4 + 0] = r;
+                imageData.data[(i) * 4 + 1] = g;
+                imageData.data[(i) * 4 + 2] = b;
+                imageData.data[(i) * 4 + 3] = 255;
+            }
+
+            resolve(netpbmToImageData(imageData));
+        };
+
+        fileReader.readAsText(file);
+    });
+}
+
+function handleRleFileInput(file) {
+    console.log('RLE file input handler');
+    return new Promise((resolve, reject) => {
+        const fileReader = new FileReader();
+
+        fileReader.onload = function(e) {
+            const data = e.target.result;
+            const rleData = rleDecompressNetpbm(data);
+            const netpbmData = parseNetpbm(rleData);
+
+            const imageData = new ImageData(netpbmData.width, netpbmData.height);
+            let index = 0;
+
+            for (let i = 0; i < netpbmData.width * netpbmData.height; i++) {
+                let r, g, b;
+
+                if (netpbmData.type === 'P1') { // PBM (binary)
+                    r = g = b = netpbmData.data[i] === 0 ? 255 : 0;
+                    bitsPerPixel = 1;
+                } else if (netpbmData.type === 'P2') { // PGM (gray)
+                    r = g = b = Math.round(netpbmData.data[i] * 255 / netpbmData.maxVal);
+                    bitsPerPixel = 8;
+                } else if (netpbmData.type === 'P3') { // PPM (color)
+                    r = Math.round(netpbmData.data[index++] * 255 / netpbmData.maxVal);
+                    g = Math.round(netpbmData.data[index++] * 255 / netpbmData.maxVal);
+                    b = Math.round(netpbmData.data[index++] * 255 / netpbmData.maxVal);
+                    bitsPerPixel = 24;
+                }
+                if (netpbmData.type !== 'P3') 
+                    index++;
+
+                imageData.data[(i) * 4 + 0] = r;
+                imageData.data[(i) * 4 + 1] = g;
+                imageData.data[(i) * 4 + 2] = b;
+                imageData.data[(i) * 4 + 3] = 255;
+            }
+
+            resolve(netpbmToImageData(imageData));
+        };
+
+        fileReader.readAsText(file);
+    });
+}
+
+function netpbmToImageData(imageData) {
+    const canvas = document.createElement('canvas');
+    canvas.width = imageData.width;
+    canvas.height = imageData.height;
+    const ctx = canvas.getContext('2d');
+    ctx.putImageData(imageData, 0, 0);
+    return canvas.toDataURL();
+}
+
+function parseNetpbm(file) {
+    const lines = file
+        .replace(/#.*$/gm, '')
+        .trim()
+        .split(/\s+/);
+
+    const type = lines[0];
+    let idx = 1;
+    const width = parseInt(lines[idx++]);
+    const height = parseInt(lines[idx++]);
+    let maxVal = 1;
+
+    if (type === 'P2' || type === 'P3')
+        maxVal = parseInt(lines[idx++]);
+
+    // El resto son los datos de píxeles
+    const data = lines.slice(idx).map(Number);
+
+    return { type, width, height, maxVal, data };
+}
+
+function rleCompressNetpbm(netpbmText) {
+    const lines = netpbmText.split('\n');
+    let header = [];
+    let dataStart = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].trim() === '' || /^#/.test(lines[i])) continue;
+
+        header.push(lines[i]);
+
+        if (header.length === 3 || (header[0] === 'P1' && header.length === 2)) {
+            dataStart = i + 1;
+            break;
+        }
+    }
+
+    const headerText = header.join('\n') + '\n';
+    const dataText = lines.slice(dataStart).join(' ').replace(/\s+/g, ' ').trim();
+    const dataArr = dataText.split(' ');
+
+    let rle = [];
+    let prev = dataArr[0];
+    let count = 1;
+
+    for (let i = 1; i < dataArr.length; i++) {
+        if (dataArr[i] === prev) {
+            count++;
+        } else {
+            rle.push(prev + ':' + count);
+            prev = dataArr[i];
+            count = 1;
+        }
+    }
+
+    rle.push(prev + ':' + count);
+
+    return headerText + rle.join(' ');
+}
+
+function rleDecompressNetpbm(rleText) {
+    const lines = rleText.split('\n');
+    let header = [];
+    let dataStart = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].trim() === '' || /^#/.test(lines[i])) continue;
+
+        header.push(lines[i]);
+
+        if (header.length === 3 || (header[0] === 'P1' && header.length === 2)) {
+            dataStart = i + 1;
+            break;
+        }
+    }
+
+    const headerText = header.join('\n') + '\n';
+    const rleData = lines.slice(dataStart).join(' ').replace(/\s+/g, ' ').trim();
+    const rleArr = rleData.split(' ');
+    let dataArr = [];
+
+    for (let i = 0; i < rleArr.length; i++) {
+        const [val, count] = rleArr[i].split(':');
+
+        for (let j = 0; j < parseInt(count); j++) {
+            dataArr.push(val);
+        }
+    }
+
+    return headerText + dataArr.join(' ');
+}
+// --- End Image Functions --- //
+
+// --- Utility Functions --- //
+function updateSidebar() {
+    // Menu responsive
+    const sidebar = document.getElementById('sidebar');
+    const hamburger = document.getElementById('hamburger-btn');
+
+    hamburger.addEventListener('click', () => {
+        sidebar.classList.toggle('show');
+        sidebar.classList.toggle('hide');
+    });
+
+    if (window.innerWidth <= 700) {
+        sidebar.classList.add('hide');
+    } else {
+        sidebar.classList.remove('hide');
+        sidebar.classList.remove('show');
+    }
+}
+
+function render(device, context, pipeline, bindGroup, canvas, override) {
+    const commandEncoder = device.createCommandEncoder();
+    const textureView = context.getCurrentTexture().createView();
+    const renderPass = commandEncoder.beginRenderPass({
+        colorAttachments: [{
+            view: textureView,
+            clearValue: { r: 0, g: 0, b: 0, a: 1 },
+            loadOp: 'clear',
+            storeOp: 'store',
+        }],
+    });
+
+    renderPass.setPipeline(pipeline);
+    renderPass.setBindGroup(0, bindGroup);
+    renderPass.draw(6, 1, 0, 0);
+    renderPass.end();
+
+    device.queue.submit([commandEncoder.finish()]);
+
+    imageSrc = canvas.toDataURL('image/png');
+
+    if (override) {
+        resetValues();
+        imageProcessed.src = imageSrc;
+    }
+
+    imageTemporal.src = imageSrc;
+
+    imageTemporal.onload = function() {
+        profileCurveLine();
+        goToTonalCurve();
+        goToHistogram();
+    }
+
+    if (imageTemporal.complete) {
+        profileCurveLine();
+        goToTonalCurve();
+        goToHistogram();
+    }
 }
 
 function resetValues() {
@@ -1613,18 +1826,16 @@ async function initWebGPU(shaderCode, override = false) {
     }
 }
 
-function main() {
+async function main() {
     updateSidebar();
 
     const imageInput = document.getElementById('image-load');
 
     if (imageInput) {
-        imageInput.addEventListener('change', (e) => {
+        imageInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
 
             if (file) {
-                getBitsPerPixel(file);
-
                 document.getElementById('gpu-canvas').style.display = 'block';
                 document.getElementById('container-profile-curve').style.display = 'block';
 
@@ -1632,7 +1843,19 @@ function main() {
                 imageOriginal = new Image();
                 imageTemporal = new Image();
 
-                imageSrc = URL.createObjectURL(file);
+                const extension = file.name.split('.').pop().toLowerCase();
+
+                if (extension === 'pbm' || extension === 'pgm' || extension === 'ppm') {
+                    imageSrc = await handleNetpbmFileInput(file);
+                    console.log(imageSrc);
+                } else if (extension === 'rle') {
+                    imageSrc = await handleRleFileInput(file);
+                    console.log(imageSrc);
+                } else {
+                    getBitsPerPixel(file);
+                    imageSrc = URL.createObjectURL(file);
+                    console.log(imageSrc);
+                }
 
                 imageProcessed.src = imageSrc;
                 imageOriginal.src = imageSrc;
