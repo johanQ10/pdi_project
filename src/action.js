@@ -578,6 +578,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let parX = 0;
         let parY = 0;
         let sum = 0;
+        let midX = Math.floor(kw / 2);
+        let midY = Math.floor(kh / 2);
 
         const matrix = [];
 
@@ -592,24 +594,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 sum += x;
 
                 if (parX) {
-                    if (j < Math.floor(kw / 2) - 1)
+                    if (j < midX - 1)
                         x++;
-                    else if (j > Math.floor(kw / 2) - 1)
+                    else if (j > midX - 1)
                         x--;
                 } else {
-                    if (j < Math.floor(kw / 2))
+                    if (j < midX)
                         x++;
                     else x--;
                 }
             }
 
             if (parY) {
-                if (i < Math.floor(kh / 2) - 1)
+                if (i < midY - 1)
                     y++;
-                else if (i > Math.floor(kh / 2) - 1)
+                else if (i > midY - 1)
                     y--;
             } else {
-                if (i < Math.floor(kh / 2))
+                if (i < midY)
                     y++;
                 else y--;
             }
@@ -800,8 +802,122 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return borderShader(sobelX, sobelY, kw, kh);
     }
+
+    function robertsShader(kw, kh) {
+        const robertsX = [];
+        const robertsY = [];
+
+        for (let i = 0; i < kh; i++) {
+            const fileX = [];
+            const fileY = [];
+            for (let j = 0; j < kw; j++) {
+                fileX.push(0);
+                fileY.push(0);
+            }
+            robertsX.push(fileX);
+            robertsY.push(fileY);
+        }
+
+        robertsX[0][0] = 1;
+        robertsX[kh - 1][kw - 1] = -1;
+
+        robertsY[0][kw - 1] = 1;
+        robertsY[kh - 1][0] = -1;
+
+        return borderShader(robertsX, robertsY, kw, kh);
+    }
+
+    function sharpenShader(kw, kh) {
+        let matrix = [];
+        const size = kw;
+
+        if (size === 3) {
+            matrix = [
+                [ 0, -1,  0],
+                [-1,  5, -1],
+                [ 0, -1,  0]
+            ];
+        }
+        if (size === 5) {
+            matrix = [
+                [ 0,  0, -1,  0,  0],
+                [ 0, -1, -2, -1,  0],
+                [-1, -2, 17, -2, -1],
+                [ 0, -1, -2, -1,  0],
+                [ 0,  0, -1,  0,  0]
+            ];
+        }
+        if (size === 7) {
+            matrix = [
+                [ 0,  0,  0, -1,  0,  0,  0],
+                [ 0,  0, -1, -2, -1,  0,  0],
+                [ 0, -1, -2, -3, -2, -1,  0],
+                [-1, -2, -3, 41, -3, -2, -1],
+                [ 0, -1, -2, -3, -2, -1,  0],
+                [ 0,  0, -1, -2, -1,  0,  0],
+                [ 0,  0,  0, -1,  0,  0,  0]
+            ];
+        }
+
+        let kernel = '';
+
+        for (let i = 0; i < kh; i++) {
+            kernel += 'array<f32, ' + kw + '>(';
+            for (let j = 0; j < kw; j++) {
+                kernel += matrix[i][j];
+                if (j < kw - 1)
+                    kernel += ', ';
+            }
+            kernel += '),\n';
+        }
+
+        return filterShader(kernel, kw, kh);
+    }
     // --- End Shaders --- //
     // --- Utility Functions --- //
+    function profileCurveLine() {
+        let image = imageTemporal;
+        const canvas = document.createElement('canvas');
+
+        canvas.width = image.naturalWidth;
+        canvas.height = 256;
+
+        const ctx = canvas.getContext('2d');
+
+        ctx.drawImage(image, 0, 0);
+
+        const width = canvas.width;
+        const height = canvas.height;
+
+        const imageData = ctx.getImageData(0, height / 2, width, 1).data;
+        const profile = [];
+
+        for (let x = 0; x < imageData.length; x += 4) {
+            const intensidad = Math.round(0.299 * imageData[x] + 0.587 * imageData[x + 1] + 0.114 * imageData[x + 2]);
+            profile.push(intensidad);
+            console.log(intensidad);
+        }
+
+        // Dibuja la curva en otro canvas (por ejemplo, id="perfil-canvas")
+        const profileCanvas = document.getElementById('profile-curve-canvas');
+        const profileCtx = profileCanvas.getContext('2d');
+
+        profileCanvas.width = width;
+        profileCanvas.height = height;
+
+        profileCtx.clearRect(0, 0, profileCanvas.width, profileCanvas.height);
+        profileCtx.beginPath();
+        profileCtx.moveTo(0, profileCanvas.height - profile[0]);
+
+        for (let x = 1; x < profile.length; x++) {
+            profileCtx.lineTo(x, profileCanvas.height - profile[x]);
+        }
+
+        profileCtx.strokeStyle = 'blue';
+        profileCtx.lineWidth = 5;
+        profileCtx.stroke();
+    }
+
     function goToTonalCurve() {
         const curva = tonalCurveCalculate(imageOriginal, imageTemporal);
         toneCurveDraw(x => curva[x]);
@@ -825,12 +941,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const dataO = ctxO.getImageData(0, 0, canvasO.width, canvasO.height).data;
         const dataT = ctxT.getImageData(0, 0, canvasT.width, canvasT.height).data;
 
-        // Acumula la suma de salidas para cada valor de entrada
         const sum = new Array(256).fill(0);
         const count = new Array(256).fill(0);
 
         for (let i = 0; i < dataO.length; i += 4) {
-            // Gris original y procesado
             const grayO = Math.round(0.299 * dataO[i] + 0.587 * dataO[i + 1] + 0.114 * dataO[i + 2]);
             const grayT = Math.round(0.299 * dataT[i] + 0.587 * dataT[i + 1] + 0.114 * dataT[i + 2]);
 
@@ -1074,11 +1188,13 @@ document.addEventListener('DOMContentLoaded', () => {
         imageTemporal.src = imageSrc;
 
         imageTemporal.onload = function() {
+            profileCurveLine();
             goToTonalCurve();
             goToHistogram();
         }
 
         if (imageTemporal.complete) {
+            profileCurveLine();
             goToTonalCurve();
             goToHistogram();
         }
@@ -1173,6 +1289,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     }
 
+    function isValidKernelSharpen(x, y) {
+        if (x != y || x < 3 || y < 3 || x > 7 || y > 7 || x % 2 == 0 || y % 2 == 0) {
+            alert('Tiene que ser minimo 3x3 y maximo 7x7, tiene que ser cuadrada y dimensiones impar');
+            return false;
+        }
+        return true;
+    }
+
     function main() {
         updateSidebar();
 
@@ -1185,7 +1309,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (file) {
                     getBitsPerPixel(file);
 
-                    document.getElementById('gpu-canvas').style.display = 'inline-block';
+                    document.getElementById('gpu-canvas').style.display = 'block';
+                    document.getElementById('container-profile-curve').style.display = 'block';
 
                     imageProcessed = new Image();
                     imageOriginal = new Image();
@@ -1202,6 +1327,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         if (maxImg < imageOriginal.naturalHeight)
                             maxImg = imageOriginal.naturalHeight;
+
+                        let profileCurveCanvas = document.getElementById('container-profile-curve');
+
+                        profileCurveCanvas.width = imageOriginal.naturalWidth;
+                        profileCurveCanvas.height = 256;
 
                         initWebGPU(generalShader(imageOriginal.naturalWidth, imageOriginal.naturalHeight, maxImg), true);
                         imageInput.value = '';
@@ -1294,48 +1424,62 @@ document.addEventListener('DOMContentLoaded', () => {
                 initWebGPU(gammaShader(gammaValue));
             });
 
-
             const average = document.getElementById('menu-average');
             const median = document.getElementById('menu-median');
             const gaussian = document.getElementById('menu-gaussian');
             const prewitt = document.getElementById('menu-prewitt');
             const sobel = document.getElementById('menu-sobel');
-            const scharr = document.getElementById('menu-scharr');
+            const roberts = document.getElementById('menu-roberts');
+            const sharpen = document.getElementById('menu-sharpen');
 
             average.addEventListener('click', (event) => {
-                const x = document.getElementById('average-input-x').value
-                const y = document.getElementById('average-input-y').value
+                const x = parseInt(document.getElementById('average-input-x').value)
+                const y = parseInt(document.getElementById('average-input-y').value)
 
                 if (isValidKernel(x, y))
                     initWebGPU(averageShader(x, y), true);
             });
             median.addEventListener('click', (event) => {
-                const x = document.getElementById('median-input-x').value
-                const y = document.getElementById('median-input-y').value
+                const x = parseInt(document.getElementById('median-input-x').value)
+                const y = parseInt(document.getElementById('median-input-y').value)
 
                 if (isValidKernel(x, y))
                     initWebGPU(medianShader(x, y), true);
             });
             gaussian.addEventListener('click', (event) => {
-                const x = document.getElementById('gaussian-input-x').value
-                const y = document.getElementById('gaussian-input-y').value
+                const x = parseInt(document.getElementById('gaussian-input-x').value)
+                const y = parseInt(document.getElementById('gaussian-input-y').value)
 
                 if (isValidKernel(x, y))
                     initWebGPU(gaussianShader(x, y), true);
             });
             prewitt.addEventListener('click', (event) => {
-                const x = document.getElementById('prewitt-input-x').value
-                const y = document.getElementById('prewitt-input-y').value
+                const x = parseInt(document.getElementById('prewitt-input-x').value)
+                const y = parseInt(document.getElementById('prewitt-input-y').value)
 
                 if (isValidKernel(x, y))
                     initWebGPU(prewittShader(x, y), true);
             });
             sobel.addEventListener('click', (event) => {
-                const x = document.getElementById('sobel-input-x').value
-                const y = document.getElementById('sobel-input-y').value
+                const x = parseInt(document.getElementById('sobel-input-x').value)
+                const y = parseInt(document.getElementById('sobel-input-y').value)
 
                 if (isValidKernel(x, y))
                     initWebGPU(sobelShader(x, y), true);
+            });
+            roberts.addEventListener('click', (event) => {
+                const x = parseInt(document.getElementById('roberts-input-x').value)
+                const y = parseInt(document.getElementById('roberts-input-y').value)
+
+                if (isValidKernel(x, y))
+                    initWebGPU(robertsShader(x, y), true);
+            });
+            sharpen.addEventListener('click', (event) => { 
+                const x = parseInt(document.getElementById('sharpen-input-x').value)
+                const y = parseInt(document.getElementById('sharpen-input-y').value)
+
+                if (isValidKernelSharpen(x, y))
+                    initWebGPU(sharpenShader(x, y), true); 
             });
         }
     }
