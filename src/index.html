@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Ejemplo WebGPU</title>
     <link rel="stylesheet" href="style.css">
+    <script src="canvastobmp.js"></script>
     <script src="action.js"></script>
 </head>
 <body>
@@ -94,9 +95,9 @@
                         Cargar imagen
                         <input type="file" id="image-load" accept="image/*" style="display:none;">
                     </label>
-                    <label for="image-save" class="image-upload-label">
-                        Guardar imagen
-                    </label>
+                    <label for="save-netpbm" class="image-upload-label" onClick="saveNetpbm()">Guardar Netpbm</label>
+                    <label for="save-png" class="image-upload-label" onClick="savePng()">Guardar PNG</label>
+                    <label for="save-bmp" class="image-upload-label" onClick="saveBmp()">Guardar BMP</label>
                 </div>
                 <div style="justify-items: center;">
                     <canvas id="gpu-canvas" style="display: none;"></canvas>
