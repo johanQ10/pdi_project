@@ -45,3 +45,6 @@ Esta aplicación web permite cargar, visualizar, procesar y exportar imágenes u
 
 ## Autor
 - Johan Quinter - Proyecto de la materia Procesamiento Digital de Imágenes - Postgrado UCV
+
+## Enlace al repositorio en GitHub
+https://github.com/johanQ10/pdi_project
