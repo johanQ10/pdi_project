@@ -213,3 +213,19 @@ body {
 .filters {
     width: 25px;
 }
+.filters-kernel {
+    margin: 0px;
+    padding: 0px;
+    width: 18px;
+    text-align: center;
+}
+/* Para Chrome, Safari, Edge, Opera */
+.filters-kernel::-webkit-outer-spin-button,
+.filters-kernel::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+/* Para Firefox */
+.filters-kernel {
+  -moz-appearance: textfield;
+}
