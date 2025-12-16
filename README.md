@@ -34,6 +34,7 @@ Esta aplicación web permite cargar, visualizar, procesar y exportar imágenes u
 - `assets/exported/`: Imágenes exportadas.
 
 ## Notas
+- La aplicación y carga de imágenes funciona sin la necesidad de un servidor (en las pruebas hechas en los navegadores Google Chrome y Microsoft Edge), sin embargo, se dejó en el directorio `src` un archivo llamado `app.js`, el cual permite ejecutar un `localhost` con `node.js`. En caso de necesitarlo, solo tendría que, desde la terminal de comandos ubicado en el directorio `src`, ejecutar el siguiente comando: `node app.js`, y posteriormente abrir la aplicación en `http://localhost:3000`.
 - Algunos filtros requieren seleccionar parámetros antes de aplicar.
 - Los filtros u operadores que tienen el nombre o título subrayado significa que para aplicarlo o generar la acción se tiene que hacer click sobre el nombre o título en cuestión para que se ejecute.
 - En el caso de "Umbral múltiple" se debe colocar diferentes valores para crear intervalos para la umbralización, en el formato "0.1, 0.2, 0.3, 0.5, ...", en este caso cada intervalo tendrá un valor ya sea 0 o 1 (negro o blanco), y el valor se irá asignando sucesivamente entre cada intervalo, es decir, para el primer intervalo el color asignado será 0 (negro), para el segundo intervalo será 1 (blanco) y así sucesivamente.
