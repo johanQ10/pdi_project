@@ -2,177 +2,206 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Ejemplo WebGPU</title>
+    <title>Procesador de Imágenes WebGPU</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
     <script src="canvastobmp.js"></script>
     <script src="action.js"></script>
+    <script src="animation.js"></script>
 </head>
 <body>
-    <button class="hamburger" id="hamburger-btn" aria-label="Abrir menú">
-        <span>Hola</span>
-    </button>
-
     <div class="layout-3col">
         <aside class="sidebar" id="sidebar">
             <nav>
-                <a href="#" id="menu-info"><b><u>Información</u></b></a>
-                <a href="#" id="menu-erosion"><b><u>Erosión</u></b></a>
-                <a href="#" id="menu-dilatation"><b><u>Dilatación</u></b></a>
-                <a href="#" id="menu-grayscale"><b><u>Escala de Grises</u></b></a>
-                <a href="#"><span id="menu-colorscale"><b><u>Escala de Color</u></b></span><input type="color" id="color-picker" value="#ff0000"></a>
-                <a href="#" id="menu-negative"><b><u>Negativo</u></b></a>
-                <a href="#"><span id="menu-brightness"><b>Brillo</b></span><input type="number" id="brightness-input" class="input-style" value="0" step="0.1" min="-1.0" max="1.0"></a>
-                <a href="#"><span id="menu-contrast"><b>Contraste</b></span><input type="number" id="contrast-input" class="input-style" value="1" step="0.1" min="0.0" max="10.0"></a>
-                <a href="#"><span id="menu-zoom-prox"><b>Zoom Proximo</b></span><input type="number" id="zoom-prox-input" class="input-style" value="1" step="0.1" min="0.0" max="10.0"></a>
-                <a href="#"><span id="menu-zoom-bilineal"><b>Zoom Bilineal</b></span><input type="number" id="zoom-bilineal-input" class="input-style" value="1" step="0.1" min="0.0" max="10.0"></a>
-                <a href="#"><span id="menu-gamma"><b>Gamma</b></span><input type="number" id="gamma-input" class="input-style" value="1" step="0.1" min="0.0" max="5.0"></a>
-                <a href="#">
-                    <b>Umbral</b>
-                    <span>
-                    <input type="number" id="umbral-simple-input" class="input-style" value="1" step="0.1" min="0.0" max="1.0">
-                    <button id="umbral-simple-btn" type="button" class="menu-btn" style="margin-top: 5px;">Go</button>
-                    </span>
-                </a>
-                <a href="#">
-                    <b>Umbral Multiple</b>
-                    <br>
-                    <input type="text" id="umbral-multiple-input" class="input-style" placeholder="Ej: 0.1, 0.2, 0.3, 0.4">
-                    <br>
-                    <button id="umbral-multiple-btn" type="button" class="menu-btn" style="margin-top: 5px;">Go</button>
-                </a>
-                <a href="#" id="menu-flip">
-                    <b>Flip</b>
-                    <span>
-                        <button id="flip-horizontal-btn" type="button" class="menu-btn">Hor.</button>
-                        <button id="flip-vertical-btn" type="button" class="menu-btn">Ver.</button>
-                    </span>
-                </a>
-                <a href="#">
-                    <b>Rotar</b>
-                    <input type="number" id="rotate-input" class="input-style" value="1" step="90">
-                    <span>
-                        <button id="rotate-btn" type="button" class="menu-btn" style="margin-top: 5px;">Go</button>
-                        <br>
-                        <button id="rotate-left-btn" type="button" class="menu-btn" style="margin-top: 5px;">-90°</button>
-                        <button id="rotate-right-btn" type="button" class="menu-btn">90°</button>
-                    </span>
-                </a>
-                <a href="#"><span id="menu-average"><b><u>Promedio</u></b></span>
-                    <input type="number" id="average-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
-                    <input type="number" id="average-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
-                </a>
-                <a href="#"><span id="menu-median"><b><u>Media</u></b></span>
-                    <input type="number" id="median-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
-                    <input type="number" id="median-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
-                </a>
-                <a href="#"><span id="menu-gaussian"><b><u>Gaussiano</u></b></span>
-                    <input type="number" id="gaussian-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
-                    <input type="number" id="gaussian-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
-                </a>
-                <a href="#"><span id="menu-prewitt"><b><u>Prewitt</u></b></span>
-                    <input type="number" id="prewitt-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
-                    <input type="number" id="prewitt-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
-                    <br>
-                    <label><input type="radio" name="prewitt-direction" value="h" checked>Horizontal</label>
-                    <br>
-                    <label><input type="radio" name="prewitt-direction" value="v">Vertical</label>
-                    <br>
-                    <label><input type="radio" name="prewitt-direction" value="b">Ambos</label>
-                </a>
-                <a href="#"><span id="menu-sobel"><b><u>Sobel</u></b></span>
-                    <input type="number" id="sobel-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
-                    <input type="number" id="sobel-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
-                    <br>
-                    <label><input type="radio" name="sobel-direction" value="h" checked>Horizontal</label>
-                    <br>
-                    <label><input type="radio" name="sobel-direction" value="v">Vertical</label>
-                    <br>
-                    <label><input type="radio" name="sobel-direction" value="b">Ambos</label>
-                </a>
-                <a href="#"><span id="menu-roberts"><b><u>Roberts</u></b></span>
-                    <input type="number" id="roberts-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
-                    <input type="number" id="roberts-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
-                    <br>
-                    <label><input type="radio" name="roberts-direction" value="h" checked>Horizontal</label>
-                    <br>
-                    <label><input type="radio" name="roberts-direction" value="v">Vertical</label>
-                    <br>
-                    <label><input type="radio" name="roberts-direction" value="b">Ambos</label>
-                </a>
-                <a href="#"><span id="menu-gradient"><b><u>Gradiente</u></b></span>
-                    <input type="number" id="gradient-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
-                    <input type="number" id="gradient-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
-                </a>
-                <a href="#"><span id="menu-sharpen"><b><u>Sharpen</u></b></span>
-                    <input type="number" id="sharpen-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
-                    <input type="number" id="sharpen-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
-                </a>
-                <a href="#"><span id="menu-custom" onClick="kernelCustom()"><b><u>Kernel</u></b></span>
-                    <br>
-                    <input type="number" id="custom-input-1" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-2" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-3" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-4" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-5" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-6" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-7" class="input-style filters-kernel" value="0" step="1">
-                    <br>
-                    <input type="number" id="custom-input-8" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-9" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-10" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-11" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-12" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-13" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-14" class="input-style filters-kernel" value="0" step="1">
-                    <br>
-                    <input type="number" id="custom-input-15" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-16" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-17" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-18" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-19" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-20" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-21" class="input-style filters-kernel" value="0" step="1">
-                    <br>
-                    <input type="number" id="custom-input-22" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-23" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-24" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-25" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-26" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-27" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-28" class="input-style filters-kernel" value="0" step="1">
-                    <br>
-                    <input type="number" id="custom-input-29" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-30" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-31" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-32" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-33" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-34" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-35" class="input-style filters-kernel" value="0" step="1">
-                    <br>
-                    <input type="number" id="custom-input-36" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-37" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-38" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-39" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-40" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-41" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-42" class="input-style filters-kernel" value="0" step="1">
-                    <br>
-                    <input type="number" id="custom-input-43" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-44" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-45" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-46" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-47" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-48" class="input-style filters-kernel" value="0" step="1">
-                    <input type="number" id="custom-input-49" class="input-style filters-kernel" value="0" step="1">
-                    <br>
-
-                </a>
-                <a href="#"></a>
+                <!-- Informacion -->
+                <div class="menu-group">
+                    <button class="menu-group-title" type="button">Información</button>
+                    <div class="menu-group-content">
+                        <a href="#" id="menu-info"><b><u>Información</u></b></a>
+                    </div>
+                </div>
+                <!-- Morfologia -->
+                <div class="menu-group">
+                    <button class="menu-group-title" type="button">Morfología</button>
+                    <div class="menu-group-content">
+                        <a href="#" id="menu-erosion"><b><u>Erosión</u></b></a>
+                        <a href="#" id="menu-dilatation"><b><u>Dilatación</u></b></a>
+                    </div>
+                </div>
+                <!-- Edicion -->
+                <div class="menu-group">
+                    <button class="menu-group-title" type="button">Edición</button>
+                    <div class="menu-group-content">
+                        <a href="#" id="menu-grayscale"><b><u>Gris</u></b></a>
+                        <a href="#"><span id="menu-colorscale"><b><u>Color</u></b></span><input type="color" id="color-picker" value="#ff0000"></a>
+                        <a href="#" id="menu-negative"><b><u>Negativo</u></b></a>
+                        <a href="#"><span id="menu-brightness"><b>Brillo</b></span><input type="number" id="brightness-input" class="input-style" value="0" step="0.1" min="-1.0" max="1.0"></a>
+                        <a href="#"><span id="menu-contrast"><b>Contraste</b></span><input type="number" id="contrast-input" class="input-style" value="1" step="0.1" min="0.0" max="10.0"></a>
+                        <a href="#"><span id="menu-zoom-prox"><b>Zoom Proximo</b></span><input type="number" id="zoom-prox-input" class="input-style" value="1" step="0.1" min="0.0" max="10.0"></a>
+                        <a href="#"><span id="menu-zoom-bilineal"><b>Zoom Bilineal</b></span><input type="number" id="zoom-bilineal-input" class="input-style" value="1" step="0.1" min="0.0" max="10.0"></a>
+                        <a href="#"><span id="menu-gamma"><b>Gamma</b></span><input type="number" id="gamma-input" class="input-style" value="1" step="0.1" min="0.0" max="5.0"></a>
+                        <a href="#">
+                            <b>Umbral</b>
+                            <span>
+                            <input type="number" id="umbral-simple-input" class="input-style" value="1" step="0.1" min="0.0" max="1.0">
+                            <button id="umbral-simple-btn" type="button" class="menu-btn">Go</button>
+                            </span>
+                        </a>
+                        <a href="#">
+                            <b>Umbral Multiple</b>
+                            <input type="text" id="umbral-multiple-input" class="input-style" placeholder="Ej: 0.1, 0.2, 0.3, 0.4">
+                            <button id="umbral-multiple-btn" type="button" class="menu-btn">Go</button>
+                        </a>
+                        <a href="#" id="menu-flip">
+                            <b>Flip</b>
+                            <span>
+                                <button id="flip-horizontal-btn" type="button" class="menu-btn">Hor.</button>
+                                <button id="flip-vertical-btn" type="button" class="menu-btn">Ver.</button>
+                            </span>
+                        </a>
+                        <a href="#">
+                            <b>Rotar</b>
+                            <input type="number" id="rotate-input" class="input-style" value="1" step="90">
+                            <span>
+                                <button id="rotate-btn" type="button" class="menu-btn">Go</button>
+                                <button id="rotate-left-btn" type="button" class="menu-btn">-90°</button>
+                                <button id="rotate-right-btn" type="button" class="menu-btn">90°</button>
+                            </span>
+                        </a>
+                    </div>
+                </div>
+                <!-- Filtros -->
+                <div class="menu-group">
+                    <button class="menu-group-title" type="button">Filtros</button>
+                    <div class="menu-group-content">
+                        <a href="#"><span id="menu-average"><b><u>Promedio</u></b></span>
+                            <input type="number" id="average-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
+                            <input type="number" id="average-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
+                        </a>
+                        <a href="#"><span id="menu-median"><b><u>Media</u></b></span>
+                            <input type="number" id="median-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
+                            <input type="number" id="median-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
+                        </a>
+                        <a href="#"><span id="menu-gaussian"><b><u>Gaussiano</u></b></span>
+                            <input type="number" id="gaussian-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
+                            <input type="number" id="gaussian-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
+                        </a>
+                    </div>
+                </div>
+                <!-- Bordes -->
+                <div class="menu-group">
+                    <button class="menu-group-title" type="button">Bordes</button>
+                    <div class="menu-group-content">
+                        <a href="#"><span id="menu-prewitt"><b><u>Prewitt</u></b></span>
+                            <input type="number" id="prewitt-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
+                            <input type="number" id="prewitt-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
+                            <br>
+                            <label><input type="radio" name="prewitt-direction" value="h" checked>Horizontal</label>
+                            <br>
+                            <label><input type="radio" name="prewitt-direction" value="v">Vertical</label>
+                            <br>
+                            <label><input type="radio" name="prewitt-direction" value="b">Ambos</label>
+                        </a>
+                        <a href="#"><span id="menu-sobel"><b><u>Sobel</u></b></span>
+                            <input type="number" id="sobel-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
+                            <input type="number" id="sobel-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
+                            <br>
+                            <label><input type="radio" name="sobel-direction" value="h" checked>Horizontal</label>
+                            <br>
+                            <label><input type="radio" name="sobel-direction" value="v">Vertical</label>
+                            <br>
+                            <label><input type="radio" name="sobel-direction" value="b">Ambos</label>
+                        </a>
+                        <a href="#"><span id="menu-roberts"><b><u>Roberts</u></b></span>
+                            <input type="number" id="roberts-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
+                            <input type="number" id="roberts-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
+                            <br>
+                            <label><input type="radio" name="roberts-direction" value="h" checked>Horizontal</label>
+                            <br>
+                            <label><input type="radio" name="roberts-direction" value="v">Vertical</label>
+                            <br>
+                            <label><input type="radio" name="roberts-direction" value="b">Ambos</label>
+                        </a>
+                        <a href="#"><span id="menu-gradient"><b><u>Gradiente</u></b></span>
+                            <input type="number" id="gradient-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
+                            <input type="number" id="gradient-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
+                        </a>
+                        <a href="#"><span id="menu-sharpen"><b><u>Sharpen</u></b></span>
+                            <input type="number" id="sharpen-input-x" class="input-style filters" value="1" step="1" min="1" max="7">
+                            <input type="number" id="sharpen-input-y" class="input-style filters" value="1" step="1" min="1" max="7">
+                        </a>
+                    </div>
+                </div>
+                <!-- Custom -->
+                <div class="menu-group">
+                    <button class="menu-group-title" type="button">Custom</button>
+                    <div class="menu-group-content">
+                        <a href="#"><span id="menu-custom" onClick="kernelCustom()"><b><u>Kernel</u></b></span>
+                            <br>
+                            <input type="number" id="custom-input-1" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-2" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-3" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-4" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-5" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-6" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-7" class="input-style filters-kernel" value="0" step="1">
+                            <br>
+                            <input type="number" id="custom-input-8" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-9" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-10" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-11" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-12" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-13" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-14" class="input-style filters-kernel" value="0" step="1">
+                            <br>
+                            <input type="number" id="custom-input-15" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-16" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-17" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-18" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-19" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-20" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-21" class="input-style filters-kernel" value="0" step="1">
+                            <br>
+                            <input type="number" id="custom-input-22" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-23" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-24" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-25" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-26" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-27" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-28" class="input-style filters-kernel" value="0" step="1">
+                            <br>
+                            <input type="number" id="custom-input-29" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-30" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-31" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-32" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-33" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-34" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-35" class="input-style filters-kernel" value="0" step="1">
+                            <br>
+                            <input type="number" id="custom-input-36" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-37" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-38" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-39" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-40" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-41" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-42" class="input-style filters-kernel" value="0" step="1">
+                            <br>
+                            <input type="number" id="custom-input-43" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-44" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-45" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-46" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-47" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-48" class="input-style filters-kernel" value="0" step="1">
+                            <input type="number" id="custom-input-49" class="input-style filters-kernel" value="0" step="1">
+                            <br>
+                        </a>
+                    </div>
+                </div>
             </nav>
         </aside>
         <div class="main-content">
             <div style="width: 100%;">
-                <div style="margin-bottom: 20px; text-align: center;">
+                <div class="topbar">
                     <label for="image-load" class="image-upload-label">
                         Load Image
                         <input type="file" id="image-load" accept="image/*,.pbm,.pgm,.ppm,.rle" style="display:none;">
@@ -194,19 +223,21 @@
         <aside class="rightbar">
             <div class="right-title-canvas" style="margin-top: 10px;"><strong>Curva Tonal</strong></div>
             <canvas id="tonal-curve-canvas" class="right-canvas" width="256" height="256"></canvas>
-            
             <div class="right-title-canvas"><strong>Histograma RGB</strong></div>
             <canvas id="histogram-rgb-canvas" class="right-canvas" width="256" height="256"></canvas>
-
             <div class="right-title-canvas"><strong>Histograma R</strong></div>
             <canvas id="histogram-r-canvas" class="right-canvas" width="256" height="256"></canvas>
-
             <div class="right-title-canvas"><strong>Histograma G</strong></div>
             <canvas id="histogram-g-canvas" class="right-canvas" width="256" height="256"></canvas>
-
             <div class="right-title-canvas"><strong>Histograma B</strong></div>
             <canvas id="histogram-b-canvas" class="right-canvas" width="256" height="256"></canvas>
         </aside>
     </div>
+    <script>
+    function toggleMenuGroup(btn) {
+        const content = btn.nextElementSibling;
+        content.classList.toggle('expanded');
+    }
+    </script>
 </body>
 </html>

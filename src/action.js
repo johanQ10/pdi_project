@@ -1050,7 +1050,7 @@ function profileCurveLine() {
     }
 
     profileCtx.strokeStyle = 'blue';
-    profileCtx.lineWidth = 5;
+    profileCtx.lineWidth = 2;
     profileCtx.stroke();
 }
 
@@ -1116,7 +1116,7 @@ function toneCurveDraw(mappingFunction) {
 }
 
 function goToHistogram() {
-    histogramDraw(histogramCalculate(imageTemporal, 'rgb'), document.getElementById('histogram-rgb-canvas'), 'purple');
+    histogramDraw(histogramCalculate(imageTemporal, 'rgb'), document.getElementById('histogram-rgb-canvas'), '#FF47E2');
     histogramDraw(histogramCalculate(imageTemporal, 'r'), document.getElementById('histogram-r-canvas'), 'red');
     histogramDraw(histogramCalculate(imageTemporal, 'g'), document.getElementById('histogram-g-canvas'), 'green');
     histogramDraw(histogramCalculate(imageTemporal, 'b'), document.getElementById('histogram-b-canvas'), 'blue');
@@ -1155,7 +1155,7 @@ function histogramDraw(histogram, canvas, color) {
     const max = Math.max(...histogram);
 
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 2;
 
     for (let i = 0; i < 256; i++) {
         const barHeight = histogram[i] * 256 / max;
@@ -1774,19 +1774,6 @@ function rleDecompressNetpbm(rleText) {
 function updateSidebar() {
     // Menu responsive
     const sidebar = document.getElementById('sidebar');
-    const hamburger = document.getElementById('hamburger-btn');
-
-    hamburger.addEventListener('click', () => {
-        sidebar.classList.toggle('show');
-        sidebar.classList.toggle('hide');
-    });
-
-    if (window.innerWidth <= 700) {
-        sidebar.classList.add('hide');
-    } else {
-        sidebar.classList.remove('hide');
-        sidebar.classList.remove('show');
-    }
 }
 
 function render(device, context, pipeline, bindGroup, canvas, override) {
