@@ -6,13 +6,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
     <script src="canvastobmp.js"></script>
-    <script src="action.js"></script>
     <script src="animation.js"></script>
+    <script src="action.js"></script>
 </head>
 <body>
     <div class="layout-3col">
         <aside class="sidebar" id="sidebar">
             <nav>
+                <!-- Botones de acción principales -->
+                <div class="main-action-buttons">
+                    <label for="btn-load-image" title="Cargar imagen">
+                        <span aria-label="Cargar imagen" role="img">📂</span>
+                        <input type="file" id="btn-load-image" accept="image/*,.pbm,.pgm,.ppm,.rle" style="display:none;">
+                    </label>
+                    <button id="btn-save-image" title="Guardar imagen">
+                        <span aria-label="Guardar imagen" role="img">💾</span>
+                    </button>
+                    <button id="btn-reset-image" title="Resetear imagen">
+                        <span aria-label="Resetear imagen" role="img">🔄</span>
+                    </button>
+                </div>
+                <!-- Modal para guardar imagen (diseño igual a custom-kernel-modal) -->
+                <div id="save-image-modal" class="modal" style="display:none;">
+                    <div class="modal-content">
+                        <span class="close" id="close-save-modal">&times;</span>
+                        <h2 style="margin:0px 0px 12px 0px;">Guardar imagen como...</h2>
+                        <div style="display:flex; flex-direction:column; gap:12px; margin-top:16px;">
+                            <label for="save-netpbm" class="image-upload-label" onClick="saveNetpbm()">Save Netpbm</label>
+                            <label for="save-png" class="image-upload-label" onClick="savePng()">Save PNG</label>
+                            <label for="save-bmp" class="image-upload-label" onClick="saveBmp()">Save BMP</label>
+                            <label for="save-rle" class="image-upload-label" onClick="saveRle()">Save RLE</label>
+                        </div>
+                    </div>
+                </div>
                 <!-- Informacion -->
                 <div class="menu-group">
                     <button class="menu-group-title" type="button">Información</button>
@@ -183,22 +209,22 @@
             </nav>
         </aside>
         <div class="main-content">
-            <div style="width: 100%;">
-                <div class="topbar">
-                    <label for="image-load" class="image-upload-label">
-                        Load Image
-                        <input type="file" id="image-load" accept="image/*,.pbm,.pgm,.ppm,.rle" style="display:none;">
-                    </label>
-                    <label for="save-netpbm" class="image-upload-label" onClick="saveNetpbm()">Save Netpbm</label>
-                    <label for="save-png" class="image-upload-label" onClick="savePng()">Save PNG</label>
-                    <label for="save-bmp" class="image-upload-label" onClick="saveBmp()">Save BMP</label>
-                    <label for="save-rle" class="image-upload-label" onClick="saveRle()">Save RLE</label>
-                </div>
-                <div style="justify-items: center;">
-                    <canvas id="gpu-canvas" style="display: none;"></canvas>
+            <div style="width: 100%;padding-top: 10px;">
+                <div id="container-gpu-canvas" style="justify-items: center;">
+                    <div id="gpu-canvas-container" style="position: relative; width: 100%; height: 100%;">
+                        <canvas id="gpu-canvas" style="display: none;justify-self: center;"></canvas>
+                        <!-- Línea horizontal desplazable -->
+                        <div id="horizontal-line"></div>
+                    </div>
                 </div>
                 <div id="container-profile-curve" style="display: none;padding-bottom:20px;">
-                    <div class="right-title-canvas"><strong>Curva de Perfil de Línea</strong></div>
+                    <div class="right-title-canvas" style="display: flex; align-items: center; gap: 8px;">
+                        <strong>Curva de Perfil de Línea</strong>
+                        <label style="display: flex; align-items: center; gap: 4px; font-weight: normal;">
+                            <input type="checkbox" id="toggle-horizontal-line" checked>
+                            <span style="font-size: 13px;">Mostrar línea</span>
+                        </label>
+                    </div>
                     <canvas id="profile-curve-canvas" class="right-canvas"></canvas>
                 </div>
             </div>
@@ -216,11 +242,5 @@
             <canvas id="histogram-b-canvas" class="right-canvas" width="256" height="256"></canvas>
         </aside>
     </div>
-    <script>
-    function toggleMenuGroup(btn) {
-        const content = btn.nextElementSibling;
-        content.classList.toggle('expanded');
-    }
-    </script>
 </body>
 </html>

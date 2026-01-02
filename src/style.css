@@ -346,3 +346,27 @@ html, body {
 .radio-group {
     width: 95% !important;
 }
+.main-action-buttons {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    justify-content: center !important;
+    margin-bottom: 12px;
+}
+.main-action-buttons label, .main-action-buttons button {
+    background: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    font-size: 1.5em !important;
+    width: auto !important;
+}
+#horizontal-line {
+    position: absolute;
+    left: 0;
+    height: 0;
+    border-top: 4px dashed #e74c3c;
+    cursor: row-resize;
+    z-index: 10;
+    width: 100%;
+    display: none;
+}

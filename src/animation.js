@@ -54,7 +54,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 // animation.js
 // Controla la expansión/colapso animada de los submenús laterales
-
 document.addEventListener('DOMContentLoaded', function() {
     const groupTitles = document.querySelectorAll('.menu-group-title');
     groupTitles.forEach(title => {
@@ -80,6 +79,97 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Modal guardar imagen
+document.addEventListener('DOMContentLoaded', function() {
+    var saveBtn = document.getElementById('btn-save-image');
+    var modal = document.getElementById('save-image-modal');
+    var closeModal = document.getElementById('close-save-modal');
+    if (saveBtn && modal && closeModal) {
+        saveBtn.addEventListener('click', function() {
+            modal.style.display = 'block';
+        });
+        closeModal.addEventListener('click', function() {
+            modal.style.display = 'none';
+        });
+        // Cerrar modal al hacer click fuera del contenido
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    }
+});
+
+// Línea horizontal desplazable en el canvas
+function imageLoadedCallback() {
+    var gpuCanvas = document.getElementById('gpu-canvas');
+    var hLine = document.getElementById('horizontal-line');
+
+    if (gpuCanvas && hLine) {
+        // Mostrar la línea solo si el canvas está visible
+        function showLineIfCanvasVisible() {
+            if (gpuCanvas.style.display !== 'none') {
+                hLine.style.display = 'block';
+                // Centrar la línea al inicio
+                var rect = gpuCanvas.getBoundingClientRect();
+                var y = Math.floor(rect.height / 2);
+                setLineY(y);
+            } else {
+                hLine.style.display = 'none';
+            }
+        }
+        // Llamar al mostrar el canvas
+        gpuCanvas.addEventListener('transitionend', showLineIfCanvasVisible);
+        // O llamar manualmente si el canvas se muestra por JS
+        showLineIfCanvasVisible();
+
+        // Función para posicionar la línea y el label
+        function setLineY(y) {
+            var rect = gpuCanvas.getBoundingClientRect();
+            var mainContent = document.querySelector('.main-content');
+            var mainRect = mainContent ? mainContent.getBoundingClientRect() : rect;
+            // Limitar el rango vertical solo al área visible de la imagen
+            y = Math.max(0, Math.min(y, rect.height - 1));
+
+            hLine.style.top = y + 'px';
+            // Ajustar el ancho de la línea al ancho de main-content
+            hLine.style.width = (mainRect.width - 10) + 'px';
+
+            profileCurveLine(y);
+        }
+
+        // Drag & drop para la línea
+        let dragging = false;
+        hLine.addEventListener('mousedown', function(e) {
+            dragging = true;
+            e.preventDefault();
+        });
+        document.addEventListener('mousemove', function(e) {
+            if (dragging) {
+                var rect = gpuCanvas.getBoundingClientRect();
+                var y = e.clientY - rect.top;
+                setLineY(y);
+            }
+        });
+        document.addEventListener('mouseup', function() {
+            dragging = false;
+        });
+        // Si el canvas cambia de tamaño, actualizar la línea
+        window.addEventListener('resize', function() {
+            if (hLine.style.display === 'block') {
+                var rect = gpuCanvas.getBoundingClientRect();
+                var y = parseInt(hLine.style.top) || Math.floor(rect.height / 2);
+                setLineY(y);
+            }
+        });
+    }
+}
+
+function toggleMenuGroup(btn) {
+    const content = btn.nextElementSibling;
+    content.classList.toggle('expanded');
+}
 
 function expandGroup(title, content) {
     content.classList.add('expanded');
