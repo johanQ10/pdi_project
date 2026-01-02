@@ -1,3 +1,57 @@
+// Modal logic for custom kernel
+document.addEventListener('DOMContentLoaded', function() {
+    const menuCustom = document.getElementById('menu-custom');
+    const modal = document.getElementById('custom-kernel-modal');
+    const closeBtn = document.getElementById('close-custom-modal');
+    const form = document.getElementById('custom-kernel-form');
+    const inputsContainer = document.querySelector('.custom-kernel-inputs');
+
+    if (menuCustom && modal && closeBtn && form && inputsContainer) {
+        // Move all custom-input-X from DOM to modal
+        const inputIds = Array.from({length: 49}, (_, i) => `custom-input-${i + 1}`);
+        inputIds.forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                inputsContainer.appendChild(input);
+                alert('Input ' + id + ' moved to modal.');
+            } else {
+                const newInput = document.createElement('input');
+                newInput.type = 'number';
+                newInput.id = id;
+                newInput.className = 'input-style filters-kernel';
+                newInput.value = '0';
+                newInput.step = '1';
+                inputsContainer.appendChild(newInput);
+
+                if ((parseInt(id.split('-')[2]) % 7) === 0) {
+                    const endline = document.createElement('br');
+                    inputsContainer.appendChild(endline);
+                }
+            }
+        });
+
+        menuCustom.addEventListener('click', function(e) {
+            e.preventDefault();
+            modal.style.display = 'block';
+        });
+        closeBtn.addEventListener('click', function() {
+            modal.style.display = 'none';
+        });
+        window.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            modal.style.display = 'none';
+            // Aquí puedes llamar a kernelCustom() si es necesario
+            if (typeof window.kernelCustom === 'function') {
+                window.kernelCustom();
+            }
+        });
+    }
+});
 // animation.js
 // Controla la expansión/colapso animada de los submenús laterales
 

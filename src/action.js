@@ -499,7 +499,7 @@ function borderShader(mKernelX, mKernelY, kw, kh, direction) {
             `;
         } else {
             finalPart = `      
-                var result = sqrt(resultX * resultX + resultY * resultY);
+                var result = resultX + resultY;
                 result = clamp(result, vec3<f32>(0.0), vec3<f32>(1.0));
                 return vec4<f32>(result, 1.0);   
             }
@@ -2096,8 +2096,9 @@ async function main() {
         const prewitt = document.getElementById('menu-prewitt');
         const sobel = document.getElementById('menu-sobel');
         const roberts = document.getElementById('menu-roberts');
-        const gradient = document.getElementById('menu-gradient');
         const sharpen = document.getElementById('menu-sharpen');
+        const gradientM = document.getElementById('menu-gradient-m');
+        const gradientA = document.getElementById('menu-gradient-a');
 
         average.addEventListener('click', (event) => {
             const x = parseInt(document.getElementById('average-input-x').value)
@@ -2144,19 +2145,26 @@ async function main() {
             if (isValidKernel(x, y))
                 initWebGPU(robertsShader(x, y, dir), true);
         });
-        gradient.addEventListener('click', (event) => {
-            const x = parseInt(document.getElementById('gradient-input-x').value)
-            const y = parseInt(document.getElementById('gradient-input-y').value)
-
-            if (isValidKernel(x, y))
-                initWebGPU(gradientShader(x, y), true);
-        });
         sharpen.addEventListener('click', (event) => { 
             const x = parseInt(document.getElementById('sharpen-input-x').value)
             const y = parseInt(document.getElementById('sharpen-input-y').value)
 
             if (isValidKernelSharpen(x, y))
                 initWebGPU(sharpenShader(x, y), true); 
+        });
+        gradientM.addEventListener('click', (event) => {
+            const x = parseInt(document.getElementById('gradient-m-input-x').value)
+            const y = parseInt(document.getElementById('gradient-m-input-y').value)
+
+            if (isValidKernel(x, y))
+                initWebGPU(gradientShader(x, y), true);
+        });
+        gradientA.addEventListener('click', (event) => {
+            const x = parseInt(document.getElementById('gradient-a-input-x').value)
+            const y = parseInt(document.getElementById('gradient-a-input-y').value)
+
+            if (isValidKernel(x, y))
+                initWebGPU(gradientShader(x, y), true);
         });
     }
 }
