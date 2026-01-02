@@ -1049,7 +1049,7 @@ function profileCurveLine(top) {
     const profileCtx = profileCanvas.getContext('2d');
 
     profileCanvas.width = width;
-    profileCanvas.height = height;
+    profileCanvas.height = 256;
 
     profileCtx.clearRect(0, 0, profileCanvas.width, profileCanvas.height);
     profileCtx.beginPath();
