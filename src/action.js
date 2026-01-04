@@ -1014,6 +1014,84 @@ function sharpenShader(kw, kh) {
 
     return filterShader(kernel, kw, kh);
 }
+
+function embossShader(kw, kh) {
+    let matrix = [];
+    const size = kw;
+
+    if (size === 3) {
+        matrix = [
+            [-2, -1,  0],
+            [-1,  1,  1],
+            [ 0,  1,  2]
+        ];
+    }
+    if (size === 5) {
+        matrix = [
+            [ -4, -2, -1,  0,  0],
+            [ -2, -1, -1,  0,  0],
+            [ -1, -1,  1,  1,  1],
+            [  0,  0,  1,  1,  2],
+            [  0,  0,  1,  2,  4]
+        ];
+    }
+    if (size === 7) {
+        matrix = [
+            [ -16,  -8, -4, -2,  0,   0,   0],
+            [  -8,  -4, -2, -1,  0,   0,   0],
+            [  -4,  -2, -1, -1,  0,   0,   0],
+            [  -2,  -1, -1,  1,  1,   1,   2],
+            [   0,   0,  0,  1,  1,   2,   4],
+            [   0,   0,  0,  1,  2,   4,   8],
+            [   0,   0,  0,  2,  4,   8,  16]
+        ];
+    }
+
+    let kernel = '';
+
+    for (let i = 0; i < kh; i++) {
+        kernel += 'array<f32, ' + kw + '>(';
+        for (let j = 0; j < kw; j++) {
+            kernel += matrix[i][j];
+            if (j < kw - 1)
+                kernel += ', ';
+        }
+        kernel += '),\n';
+    }
+
+    const conditions =
+        `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let texSize = vec2<f32>(textureDimensions(myTexture, 0));
+            let pixel = input.uv * texSize; // coordenada de pixel a modificar
+            var result = vec3<f32>(0.0, 0.0, 0.0);
+
+            let kernel = array<array<f32, ${kw}>, ${kh}>(
+                ${kernel}
+            );
+
+            let kHalfX = ${Math.floor(kw / 2)};
+            let kHalfY = ${Math.floor(kh / 2)};
+
+            for (var y: i32 = 0; y < ${kh}; y = y + 1) {
+                for (var x: i32 = 0; x < ${kw}; x = x + 1) {
+                    let offset = vec2<f32>(f32(x - kHalfX), f32(y - kHalfY));
+                    let coord = (pixel + offset) / texSize;
+                    let color = textureSample(myTexture, mySampler, clamp(coord, vec2<f32>(0.0), vec2<f32>(1.0)));
+                    let k = kernel[y][x];
+
+                    result = result + vec3<f32>(color.r * k, color.g * k, color.b * k);
+                }
+            }
+
+            result = clamp(result, vec3<f32>(0.0), vec3<f32>(1.0));
+            return vec4<f32>(result, 1.0);   
+        }
+        `;
+
+    return vertexShader + conditions;
+}
 // --- End Shaders --- //
 
 // --- Calculates Functions --- //
@@ -1178,121 +1256,38 @@ function histogramDraw(histogram, canvas, color) {
 }
 
 function kernelCustom() {
-    let k1 = document.getElementById('custom-input-1').value;
-    let k2 = document.getElementById('custom-input-2').value;
-    let k3 = document.getElementById('custom-input-3').value;
-    let k4 = document.getElementById('custom-input-4').value;
-    let k5 = document.getElementById('custom-input-5').value;
-    let k6 = document.getElementById('custom-input-6').value;
-    let k7 = document.getElementById('custom-input-7').value;
-    let k8 = document.getElementById('custom-input-8').value;
-    let k9 = document.getElementById('custom-input-9').value;
-    let k10 = document.getElementById('custom-input-10').value;
-    let k11 = document.getElementById('custom-input-11').value;
-    let k12 = document.getElementById('custom-input-12').value;
-    let k13 = document.getElementById('custom-input-13').value;
-    let k14 = document.getElementById('custom-input-14').value;
-    let k15 = document.getElementById('custom-input-15').value;
-    let k16 = document.getElementById('custom-input-16').value;
-    let k17 = document.getElementById('custom-input-17').value;
-    let k18 = document.getElementById('custom-input-18').value;
-    let k19 = document.getElementById('custom-input-19').value;
-    let k20 = document.getElementById('custom-input-20').value;
-    let k21 = document.getElementById('custom-input-21').value;
-    let k22 = document.getElementById('custom-input-22').value;
-    let k23 = document.getElementById('custom-input-23').value;
-    let k24 = document.getElementById('custom-input-24').value;
-    let k25 = document.getElementById('custom-input-25').value;
-    let k26 = document.getElementById('custom-input-26').value;
-    let k27 = document.getElementById('custom-input-27').value;
-    let k28 = document.getElementById('custom-input-28').value;
-    let k29 = document.getElementById('custom-input-29').value;
-    let k30 = document.getElementById('custom-input-30').value;
-    let k31 = document.getElementById('custom-input-31').value;
-    let k32 = document.getElementById('custom-input-32').value;
-    let k33 = document.getElementById('custom-input-33').value;
-    let k34 = document.getElementById('custom-input-34').value;
-    let k35 = document.getElementById('custom-input-35').value;
-    let k36 = document.getElementById('custom-input-36').value;
-    let k37 = document.getElementById('custom-input-37').value;
-    let k38 = document.getElementById('custom-input-38').value;
-    let k39 = document.getElementById('custom-input-39').value;
-    let k40 = document.getElementById('custom-input-40').value;
-    let k41 = document.getElementById('custom-input-41').value;
-    let k42 = document.getElementById('custom-input-42').value;
-    let k43 = document.getElementById('custom-input-43').value;
-    let k44 = document.getElementById('custom-input-44').value;
-    let k45 = document.getElementById('custom-input-45').value;
-    let k46 = document.getElementById('custom-input-46').value;
-    let k47 = document.getElementById('custom-input-47').value;
-    let k48 = document.getElementById('custom-input-48').value;
-    let k49 = document.getElementById('custom-input-49').value;
-
-    if (k1 === '') k1 = 0;
-    if (k2 === '') k2 = 0;
-    if (k3 === '') k3 = 0;
-    if (k4 === '') k4 = 0;
-    if (k5 === '') k5 = 0;
-    if (k6 === '') k6 = 0;
-    if (k7 === '') k7 = 0;
-    if (k8 === '') k8 = 0;
-    if (k9 === '') k9 = 0;
-    if (k10 === '') k10 = 0;
-    if (k11 === '') k11 = 0;
-    if (k12 === '') k12 = 0;
-    if (k13 === '') k13 = 0;
-    if (k14 === '') k14 = 0;
-    if (k15 === '') k15 = 0;
-    if (k16 === '') k16 = 0;
-    if (k17 === '') k17 = 0;
-    if (k18 === '') k18 = 0;
-    if (k19 === '') k19 = 0;
-    if (k20 === '') k20 = 0;
-    if (k21 === '') k21 = 0;
-    if (k22 === '') k22 = 0;
-    if (k23 === '') k23 = 0;
-    if (k24 === '') k24 = 0;
-    if (k25 === '') k25 = 0;
-    if (k26 === '') k26 = 0;
-    if (k27 === '') k27 = 0;
-    if (k28 === '') k28 = 0;
-    if (k29 === '') k29 = 0;
-    if (k30 === '') k30 = 0;
-    if (k31 === '') k31 = 0;
-    if (k32 === '') k32 = 0;
-    if (k33 === '') k33 = 0;
-    if (k34 === '') k34 = 0;
-    if (k35 === '') k35 = 0;
-    if (k36 === '') k36 = 0;
-    if (k37 === '') k37 = 0;
-    if (k38 === '') k38 = 0;
-    if (k39 === '') k39 = 0;
-    if (k40 === '') k40 = 0;
-    if (k41 === '') k41 = 0;
-    if (k42 === '') k42 = 0;
-    if (k43 === '') k43 = 0;
-    if (k44 === '') k44 = 0;
-    if (k45 === '') k45 = 0;
-    if (k46 === '') k46 = 0;
-    if (k47 === '') k47 = 0;
-    if (k48 === '') k48 = 0;
-    if (k49 === '') k49 = 0;
+    let indexX = 0, indexY = 0, sizeX = 0, sizeY = 0;
 
     const matrix = [];
-    
-    const file1 = [ parseFloat(k1), parseFloat(k2), parseFloat(k3), parseFloat(k4), parseFloat(k5), parseFloat(k6), parseFloat(k7) ];
-    const file2 = [ parseFloat(k8), parseFloat(k9), parseFloat(k10), parseFloat(k11), parseFloat(k12), parseFloat(k13), parseFloat(k14) ];
-    const file3 = [ parseFloat(k15), parseFloat(k16), parseFloat(k17), parseFloat(k18), parseFloat(k19), parseFloat(k20), parseFloat(k21) ];
-    const file4 = [ parseFloat(k22), parseFloat(k23), parseFloat(k24), parseFloat(k25), parseFloat(k26), parseFloat(k27), parseFloat(k28) ];
-    const file5 = [ parseFloat(k29), parseFloat(k30), parseFloat(k31), parseFloat(k32), parseFloat(k33), parseFloat(k34), parseFloat(k35) ];
-    const file6 = [ parseFloat(k36), parseFloat(k37), parseFloat(k38), parseFloat(k39), parseFloat(k40), parseFloat(k41), parseFloat(k42) ];
-    const file7 = [ parseFloat(k43), parseFloat(k44), parseFloat(k45), parseFloat(k46), parseFloat(k47), parseFloat(k48), parseFloat(k49) ];
 
-    matrix.push(file1, file2, file3, file4, file5, file6, file7);
+    for (let i = 0; i < 7; i++) {
+        const file = [];
+
+        for (let j = 0; j < 7; j++) {
+            const input = document.getElementById(`custom-input-${i * 7 + j + 1}`);
+
+            if (input.style.display !== 'none') {
+                let value = input.value;
+                if (value === '') value = 0;
+                input.value = value;
+
+                file.push(parseFloat(value));
+
+                indexX++;
+                sizeY = i + 1;
+            }
+        }
+        if (sizeX == 0)
+            sizeX = indexX;
+
+        indexX = 0;
+
+        matrix.push(file);
+    }
 
     let kernel = '';
-    let kw = 7;
-    let kh = 7;
+    let kw = sizeX;
+    let kh = sizeY;
 
     for (let i = 0; i < kh; i++) {
         kernel += 'array<f32, ' + kw + '>(';
@@ -1836,6 +1831,7 @@ function resetValues() {
 
     document.getElementById('brightness-input').value = 0;
     document.getElementById('contrast-input').value = 1;
+    document.getElementById('zoom-input').value = 1;
 }
 
 function isValidKernel(x, y) {
@@ -2020,7 +2016,10 @@ async function main() {
 
     if (imageInput) {
         imageInput.addEventListener('change', async (e) => { loadDefaultImage(e.target.files[0]); });
-        document.getElementById('btn-reset-image').addEventListener('click', (event) => { loadDefaultImage(imageInput.files[0]); });
+        document.getElementById('btn-reset-image').addEventListener('click', (event) => { 
+            resetValues();
+            loadDefaultImage(imageInput.files[0]); 
+        });
         document.getElementById('toggle-horizontal-line').addEventListener('change', (event) => { 
             if (event.target.checked) {
                 document.getElementById('horizontal-line').style.display = 'block';
@@ -2076,15 +2075,34 @@ async function main() {
             contrastLevel = parseFloat(event.target.value);
             initWebGPU(contrastShader(contrastLevel));
         });
-        document.getElementById('zoom-prox-input').addEventListener('input', (event) => {
-            let zoom = parseFloat(event.target.value);
-            zoomBilinealInput.value = 1.0;
-            initWebGPU(zoomProxShader(zoom));
+        document.getElementById('zoom-input').addEventListener('input', (event) => {
+            let value = event.target.value;
+
+            if (value === '')
+                value = '1.0';
+
+            let zoom = parseFloat(value);
+            const type = document.querySelector('input[name="zoom-type"]:checked').value;
+
+            if (type === 'prox')
+                initWebGPU(zoomProxShader(zoom));
+            else initWebGPU(zoomBilinealShader(zoom));
         });
-        document.getElementById('zoom-bilineal-input').addEventListener('input', (event) => {
-            const zoom = parseFloat(event.target.value);
-            zoomProxInput.value = 1.0;
-            initWebGPU(zoomBilinealShader(zoom));
+        document.getElementById('zoom-prox').addEventListener('change', (event) => {
+            let zoom = parseFloat(document.getElementById('zoom-input').value);
+            const type = document.querySelector('input[name="zoom-type"]:checked').value;
+
+            if (type === 'prox')
+                initWebGPU(zoomProxShader(zoom));
+            else initWebGPU(zoomBilinealShader(zoom));
+        });
+        document.getElementById('zoom-bilineal').addEventListener('change', (event) => {
+            let zoom = parseFloat(document.getElementById('zoom-input').value);
+            const type = document.querySelector('input[name="zoom-type"]:checked').value;
+
+            if (type === 'prox')
+                initWebGPU(zoomProxShader(zoom));
+            else initWebGPU(zoomBilinealShader(zoom));
         });
         document.getElementById('gamma-input').addEventListener('input', (event) => {
             const gammaValue = parseFloat(event.target.value);
@@ -2141,6 +2159,13 @@ async function main() {
 
             if (isValidKernelSharpen(x, y))
                 initWebGPU(sharpenShader(x, y), true); 
+        });
+        document.getElementById('menu-emboss').addEventListener('click', (event) => { 
+            const x = parseInt(document.getElementById('emboss-input-x').value)
+            const y = parseInt(document.getElementById('emboss-input-y').value)
+
+            if (isValidKernelSharpen(x, y))
+                initWebGPU(embossShader(x, y), true); 
         });
         document.getElementById('menu-gradient-m').addEventListener('click', (event) => {
             const x = parseInt(document.getElementById('gradient-m-input-x').value)

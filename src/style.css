@@ -27,7 +27,7 @@
     margin-right: 4px;
 }
 .radio-group span {
-    font-size: 0.92em;
+    font-size: 1.1em;
 }
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
 
@@ -40,7 +40,7 @@ body {
     padding: 0;
     background: #181c24;
     color: #f4f4f4;
-    font-family: 'Montserrat', Arial, sans-serif;
+    font-family: 'Montserrat', sans-serif;
     overflow: hidden;
 }
 .layout-3col {
@@ -78,7 +78,7 @@ body {
     padding: 5px 0px 5px 0px;
     border-radius: 4px;
     transition: background 0.2s;
-    font-family: 'Montserrat', Arial, sans-serif;
+    font-family: 'Montserrat', sans-serif;
     margin-bottom: 2px;
     display: block;
     width: 100%;
@@ -375,4 +375,7 @@ body {
     z-index: 10;
     width: 100%;
     display: none;
+}
+.custom-kernel-inputs input {
+    width: 40px;
 }

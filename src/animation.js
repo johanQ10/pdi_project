@@ -5,10 +5,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const closeBtn = document.getElementById('close-custom-modal');
     const form = document.getElementById('custom-kernel-form');
     const inputsContainer = document.querySelector('.custom-kernel-inputs');
+    const customInputX = document.getElementById('custom-input-x');
+    const customInputY = document.getElementById('custom-input-y');
 
     if (menuCustom && modal && closeBtn && form && inputsContainer) {
         // Move all custom-input-X from DOM to modal
         const inputIds = Array.from({length: 49}, (_, i) => `custom-input-${i + 1}`);
+
         inputIds.forEach(id => {
             const input = document.getElementById(id);
             if (input) {
@@ -50,6 +53,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.kernelCustom();
             }
         });
+
+        customInputX.addEventListener('change', function() {
+            const x = parseInt(customInputX.value);
+            const y = parseInt(customInputY.value);
+            adjustKernelInputs(x, y);
+        });
+        customInputY.addEventListener('change', function() {
+            const x = parseInt(customInputX.value);
+            const y = parseInt(customInputY.value);
+            adjustKernelInputs(x, y);
+        });
+
+        const x = parseInt(customInputX.value);
+        const y = parseInt(customInputY.value);
+        adjustKernelInputs(x, y);
+    }
+
+    function adjustKernelInputs(x, y) {
+        let indexX = 0, indexY = 0;
+
+        for (let i = 0; i < 7; i++) {
+            for (let j = 0; j < 7; j++) {
+                const input = document.getElementById(`custom-input-${i * 7 + j + 1}`);
+
+                if (indexX < x && indexY < y) {
+                    input.style.display = 'inline-block';
+                } else {
+                    input.style.display = 'none';
+                }
+
+                indexX++;
+            }
+            indexY++;
+            indexX = 0;
+        }
     }
 });
 // animation.js
@@ -160,7 +198,7 @@ function imageLoadedCallback() {
             if (hLine.style.display === 'block') {
                 var rect = gpuCanvas.getBoundingClientRect();
                 var y = parseInt(hLine.style.top) || Math.floor(rect.height / 2);
-                setLineY(y);
+                setLineY(0);
             }
         });
     }
