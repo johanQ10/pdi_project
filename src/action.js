@@ -1256,7 +1256,22 @@ function histogramDraw(histogram, canvas, color) {
 }
 
 function kernelCustom() {
-    let indexX = 0, indexY = 0, sizeX = 0, sizeY = 0;
+    let customInputX = document.getElementById('custom-input-x').value;
+    let customInputY = document.getElementById('custom-input-y').value;
+
+    if (customInputX === '') customInputX = 3;
+    if (customInputY === '') customInputY = 3;
+
+    customInputX = parseInt(customInputX);
+    customInputY = parseInt(customInputY);
+
+    if (customInputX < 1) customInputX = 1;
+    if (customInputX > 7) customInputX = 7;
+    if (customInputY < 1) customInputY = 1;
+    if (customInputY > 7) customInputY = 7;
+
+    if (!isValidKernel(customInputX, customInputY))
+        return;
 
     const matrix = [];
 
@@ -1272,22 +1287,15 @@ function kernelCustom() {
                 input.value = value;
 
                 file.push(parseFloat(value));
-
-                indexX++;
-                sizeY = i + 1;
             }
         }
-        if (sizeX == 0)
-            sizeX = indexX;
-
-        indexX = 0;
 
         matrix.push(file);
     }
 
     let kernel = '';
-    let kw = sizeX;
-    let kh = sizeY;
+    let kw = customInputX;
+    let kh = customInputY;
 
     for (let i = 0; i < kh; i++) {
         kernel += 'array<f32, ' + kw + '>(';
@@ -1849,6 +1857,20 @@ function isValidKernelSharpen(x, y) {
     }
     return true;
 }
+
+function applyZoom() {
+    let value = document.getElementById('zoom-input').value;
+
+    if (value === '')
+        value = '1.0';
+
+    let zoom = parseFloat(value);
+    const type = document.querySelector('input[name="zoom-type"]:checked').value;
+
+    if (type === 'prox')
+        initWebGPU(zoomProxShader(zoom));//false
+    else initWebGPU(zoomBilinealShader(zoom));//false
+}
 // --- End Utility Functions --- //
 
 // Main function
@@ -2069,44 +2091,18 @@ async function main() {
 
         document.getElementById('brightness-input').addEventListener('input', (event) => {
             brightnessLevel = parseFloat(event.target.value);
-            initWebGPU(brightnessShader(brightnessLevel));
+            initWebGPU(brightnessShader(brightnessLevel));//false
         });
         document.getElementById('contrast-input').addEventListener('input', (event) => {
             contrastLevel = parseFloat(event.target.value);
-            initWebGPU(contrastShader(contrastLevel));
+            initWebGPU(contrastShader(contrastLevel));//false
         });
-        document.getElementById('zoom-input').addEventListener('input', (event) => {
-            let value = event.target.value;
-
-            if (value === '')
-                value = '1.0';
-
-            let zoom = parseFloat(value);
-            const type = document.querySelector('input[name="zoom-type"]:checked').value;
-
-            if (type === 'prox')
-                initWebGPU(zoomProxShader(zoom));
-            else initWebGPU(zoomBilinealShader(zoom));
-        });
-        document.getElementById('zoom-prox').addEventListener('change', (event) => {
-            let zoom = parseFloat(document.getElementById('zoom-input').value);
-            const type = document.querySelector('input[name="zoom-type"]:checked').value;
-
-            if (type === 'prox')
-                initWebGPU(zoomProxShader(zoom));
-            else initWebGPU(zoomBilinealShader(zoom));
-        });
-        document.getElementById('zoom-bilineal').addEventListener('change', (event) => {
-            let zoom = parseFloat(document.getElementById('zoom-input').value);
-            const type = document.querySelector('input[name="zoom-type"]:checked').value;
-
-            if (type === 'prox')
-                initWebGPU(zoomProxShader(zoom));
-            else initWebGPU(zoomBilinealShader(zoom));
-        });
+        document.getElementById('zoom-input').addEventListener('input', (event) => { applyZoom(); });
+        document.getElementById('zoom-prox').addEventListener('change', (event) => { applyZoom(); });
+        document.getElementById('zoom-bilineal').addEventListener('change', (event) => { applyZoom(); });
         document.getElementById('gamma-input').addEventListener('input', (event) => {
             const gammaValue = parseFloat(event.target.value);
-            initWebGPU(gammaShader(gammaValue));
+            initWebGPU(gammaShader(gammaValue));//false
         });
         document.getElementById('menu-average').addEventListener('click', (event) => {
             const x = parseInt(document.getElementById('average-input-x').value)
