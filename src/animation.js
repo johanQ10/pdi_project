@@ -114,7 +114,7 @@ function imageLoadedCallback() {
                 // Centrar la línea al inicio
                 var rect = gpuCanvas.getBoundingClientRect();
                 var y = Math.floor(rect.height / 2);
-                setLineY(y);
+                setLineY(0);
             } else {
                 hLine.style.display = 'none';
             }

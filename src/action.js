@@ -942,7 +942,7 @@ function gradientShader(kw, kh, type) {
                     let prom = 0.21 * color.r + 0.72 * color.g + 0.07 * color.b;
                     let k = kernelX[y][x];
 
-                    resultX = resultX + vec3<f32>(prom * k, prom * k, prom * k);
+                    resultX = resultX + vec3<f32>(color.r * k, color.g * k, color.b * k);
                 }
             }
             for (var y: i32 = 0; y < ${kh}; y = y + 1) {
@@ -953,7 +953,7 @@ function gradientShader(kw, kh, type) {
                     let prom = 0.21 * color.r + 0.72 * color.g + 0.07 * color.b;
                     let k = kernelY[y][x];
 
-                    resultY = resultY + vec3<f32>(prom * k, prom * k, prom * k);
+                    resultY = resultY + vec3<f32>(color.r * k, color.g * k, color.b * k);
                 }
             }
         ` + (type === 'm' ? `      
@@ -2008,7 +2008,7 @@ async function loadDefaultImage(imageFile) {
             initWebGPU(generalShader(imageOriginal.naturalWidth, imageOriginal.naturalHeight, maxImg), true);
             imageLoadedCallback();
 
-            document.getElementById('btn-load-image').value = '';
+            // document.getElementById('btn-load-image').value = '';
         }
     }
 }
@@ -2019,7 +2019,7 @@ async function main() {
     const imageInput = document.getElementById('btn-load-image');
 
     if (imageInput) {
-        imageInput.addEventListener('change', async (e) => { loadDefaultImage(imageInput.files[0]); });
+        imageInput.addEventListener('change', async (e) => { loadDefaultImage(e.target.files[0]); });
         document.getElementById('btn-reset-image').addEventListener('click', (event) => { loadDefaultImage(imageInput.files[0]); });
         document.getElementById('toggle-horizontal-line').addEventListener('change', (event) => { 
             if (event.target.checked) {
