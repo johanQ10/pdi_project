@@ -51,8 +51,16 @@
                 <div class="menu-group">
                     <button class="menu-group-title" type="button">Morfología</button>
                     <div class="menu-group-content">
-                        <a href="#" id="menu-erosion"><b><u>Erosión</u></b></a>
-                        <a href="#" id="menu-dilatation"><b><u>Dilatación</u></b></a>
+                        <a href="#">
+                            <span id="menu-erosion"><b><u>Erosión</u></b></span>
+                            <input type="number" id="erosion-input-x" class="input-style filters" value="3" step="1" min="1" max="7">
+                            <input type="number" id="erosion-input-y" class="input-style filters" value="3" step="1" min="1" max="7">
+                        </a>
+                        <a href="#">
+                            <span id="menu-dilate"><b><u>Dilatación</u></b></span>
+                            <input type="number" id="dilate-input-x" class="input-style filters" value="3" step="1" min="1" max="7">
+                            <input type="number" id="dilate-input-y" class="input-style filters" value="3" step="1" min="1" max="7">
+                        </a>
                     </div>
                 </div>
                 <!-- Escala -->
@@ -186,7 +194,8 @@
                 <div class="menu-group">
                     <button class="menu-group-title" type="button">Gradiente</button>
                     <div class="menu-group-content">
-                        <a href="#"><span id="menu-gradient-m"><b><u>Magnitud</u></b></span>
+                        <a href="#">
+                            <span id="menu-gradient-m"><b><u>Magnitud</u></b></span>
                             <input type="number" id="gradient-m-input-x" class="input-style filters" value="3" step="1" min="1" max="7">
                             <input type="number" id="gradient-m-input-y" class="input-style filters" value="3" step="1" min="1" max="7">
                         </a>

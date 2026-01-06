@@ -86,7 +86,7 @@ function erosionShader() {
     `;
 }
 
-function dilatationShader() {
+function dilateShader() {
     return vertexShader + 
     `
     @fragment
@@ -1808,8 +1808,6 @@ function render(device, context, pipeline, bindGroup, canvas, override) {
 
     device.queue.submit([commandEncoder.finish()]);
 
-    imageSrc = canvas.toDataURL('image/png');
-
     const canvas2d = document.getElementById('gpu-canvas-2d');
     const context2d = canvas2d.getContext('2d');
 
@@ -1817,6 +1815,8 @@ function render(device, context, pipeline, bindGroup, canvas, override) {
     canvas2d.height = canvas.height;
 
     context2d.drawImage(canvas, 0, 0);
+
+    imageSrc = canvas2d.toDataURL('image/png');
 
     if (override) {
         resetValues();
@@ -1988,25 +1988,6 @@ async function initWebGPU(shaderCode, override = false) {
     } catch (e) {
         alert('Error: ' + e.message);
         console.error(e);
-    }
-}
-
-async function initOpenCV(type) {
-    if (isCvLoaded()) {
-        const gpuCanvas = document.getElementById('gpu-canvas-2d');
-
-        // Canvas auxiliar 2D
-        const auxCanvas = document.createElement('canvas');
-        auxCanvas.width = gpuCanvas.width;
-        auxCanvas.height = gpuCanvas.height;
-        const auxCtx = auxCanvas.getContext('2d');
-        auxCtx.drawImage(gpuCanvas, 0, 0);
-
-        if (type === 0) erosionCv(cv, auxCanvas);
-        else dilateCv(cv, auxCanvas);
-
-        const gpuCtx = gpuCanvas.getContext('2d'); // Solo si el canvas soporta 2d
-        gpuCtx.drawImage(auxCanvas, 0, 0);
     }
 }
 
@@ -2206,11 +2187,11 @@ async function main() {
         // OpenCV
         document.getElementById('menu-erosion').addEventListener('click', (event) => {
             // initWebGPU(erosionShader(), true);
-            initOpenCV(0);
+            initOpenCV(0, true);
         });
-        document.getElementById('menu-dilatation').addEventListener('click', (event) => {
-            // initWebGPU(dilatationShader(), true);
-            initOpenCV(1);
+        document.getElementById('menu-dilate').addEventListener('click', (event) => {
+            // initWebGPU(dilateShader(), true);
+            initOpenCV(1, true);
         });
     }
 }
@@ -2232,12 +2213,58 @@ function isCvLoaded() {
     return isCvInit;
 }
 
+async function initOpenCV(type, override = false) {
+    if (isCvLoaded()) {
+        const gpuCanvas2d = document.getElementById('gpu-canvas-2d');
+
+        // Canvas auxiliar 2D
+        const auxCanvas = document.createElement('canvas');
+        auxCanvas.width = gpuCanvas2d.width;
+        auxCanvas.height = gpuCanvas2d.height;
+        const auxCtx = auxCanvas.getContext('2d');
+        auxCtx.drawImage(gpuCanvas2d, 0, 0);
+
+        if (type === 0) 
+            erosionCv(cv, auxCanvas);
+        else 
+            dilateCv(cv, auxCanvas);
+
+        const gpuCtx = gpuCanvas2d.getContext('2d');
+        gpuCtx.drawImage(auxCanvas, 0, 0);
+
+        imageSrc = gpuCanvas2d.toDataURL('image/png');
+
+        if (override) {
+            resetValues();
+            imageProcessed.src = imageSrc;
+        }
+
+        imageTemporal.src = imageSrc;
+
+        let line = document.getElementById('horizontal-line');
+
+        imageTemporal.onload = function() {
+            profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
+            goToTonalCurve();
+            goToHistogram();
+        }
+
+        if (imageTemporal.complete) {
+            profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
+            goToTonalCurve();
+            goToHistogram();
+        }
+    }
+}
+
 // --- OpenCv --- //
 function erosionCv(cv, canvas) {
-    let mat = cv.imread(canvas); // Lee la imagen del canvas
-    let kernel = cv.Mat.ones(3, 3, cv.CV_8U); // Kernel 3x3
+    let x = document.getElementById('erosion-input-x').value;
+    let y = document.getElementById('erosion-input-y').value;
 
-    // Erosión
+    let mat = cv.imread(canvas);
+    let kernel = cv.Mat.ones(parseInt(x), parseInt(y), cv.CV_8U);
+
     cv.erode(mat, mat, kernel);
     cv.imshow(canvas, mat);
 
@@ -2246,10 +2273,12 @@ function erosionCv(cv, canvas) {
 }
 
 function dilateCv(cv, canvas) {
-    let mat = cv.imread(canvas); // Lee la imagen del canvas
-    let kernel = cv.Mat.ones(3, 3, cv.CV_8U); // Kernel 3x3
+    let x = document.getElementById('dilate-input-x').value;
+    let y = document.getElementById('dilate-input-y').value;
 
-    // Erosión
+    let mat = cv.imread(canvas);
+    let kernel = cv.Mat.ones(parseInt(x), parseInt(y), cv.CV_8U);
+
     cv.dilate(mat, mat, kernel);
     cv.imshow(canvas, mat);
 
