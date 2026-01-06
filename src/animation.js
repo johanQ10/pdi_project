@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Línea horizontal desplazable en el canvas
 function imageLoadedCallback() {
-    var gpuCanvas = document.getElementById('gpu-canvas');
+    var gpuCanvas = document.getElementById('gpu-canvas-2d');
     var hLine = document.getElementById('horizontal-line');
 
     if (gpuCanvas && hLine) {

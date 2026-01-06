@@ -5,6 +5,7 @@
     <title>Procesador de Imágenes WebGPU</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
+    <script src="opencv.js"></script>
     <script src="canvastobmp.js"></script>
     <script src="animation.js"></script>
     <script src="action.js"></script>
@@ -226,6 +227,7 @@
             <div style="width: 100%;padding-top: 10px;">
                 <div id="container-gpu-canvas" style="justify-items: center;">
                     <div id="gpu-canvas-container" style="position: relative; width: 100%; height: 100%;">
+                        <canvas id="gpu-canvas-2d" style="display: none;justify-self: center;"></canvas>
                         <canvas id="gpu-canvas" style="display: none;justify-self: center;"></canvas>
                         <!-- Línea horizontal desplazable -->
                         <div id="horizontal-line"></div>
