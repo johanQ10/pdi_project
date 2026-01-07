@@ -126,13 +126,13 @@ body {
 .close:hover {
     color: #fff;
 }
-.custom-kernel-inputs {
+.custom-kernel-inputs, .custom-kernel-inputs-morfology {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 18px;
 }
-.custom-kernel-inputs input {
+.custom-kernel-inputs input, .custom-kernel-inputs-morfology input {
     width: 48px;
     font-size: 0.95em;
     padding: 4px 6px;
@@ -378,6 +378,6 @@ body {
     width: 100%;
     display: none;
 }
-.custom-kernel-inputs input {
+.custom-kernel-inputs input, .custom-kernel-inputs-morfology input {
     width: 40px;
 }

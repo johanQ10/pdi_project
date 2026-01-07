@@ -8,6 +8,10 @@ let brightnessLevel = 0;
 let contrastLevel = 1;
 let colorValue = "#ff0000";
 let rotate = false;
+let kernelCustomMorfology = [];
+let xCustomMorfology = 0;
+let yCustomMorfology = 0;
+let isCustomMorfology = false;
 
 let vertexShader = `
     @group(0) @binding(0) var mySampler: sampler;
@@ -532,7 +536,7 @@ function medianShader(kw, kh) {
     let kernel = '';
 
     for (let i = 0; i < kh; i++) {
-        kernel += '    array<f32, ' + kw + '>(';
+        kernel += 'array<f32, ' + kw + '>(';
         for (let j = 0; j < kw; j++) {
             kernel += '1.0';
 
@@ -607,10 +611,10 @@ function gaussianShader(kw, kh) {
     if (kh % 2 == 0) parY = 1;
 
     for (let i = 0; i < kh; i++) {
-        const file = [];
+        const row = [];
 
         for (let j = 0; j < kw; j++) {
-            file.push(x);
+            row.push(x);
             sum += x;
 
             if (parX) {
@@ -638,7 +642,7 @@ function gaussianShader(kw, kh) {
 
         x = y;
 
-        matrix.push(file);
+        matrix.push(row);
     }
 
     for (let i = 0; i < kh; i++) {
@@ -665,38 +669,38 @@ function prewittShader(kw, kh, direction) {
     if (kh % 2 == 0) parY = 1;
 
     for (let i = 0; i < kh; i++) {
-        const fileX = [];
-        const fileY = [];
+        const rowX = [];
+        const rowY = [];
 
         for (let j = 0; j < kw; j++) {
             if (parX) {
                 if (j < Math.floor(kw / 2))
-                    fileX.push(-1);
+                    rowX.push(-1);
                 else if (j >= Math.floor(kw / 2))
-                    fileX.push(1);
+                    rowX.push(1);
             } else {
                 if (j < Math.floor(kw / 2))
-                    fileX.push(-1);
+                    rowX.push(-1);
                 else if (j > Math.floor(kw / 2))
-                    fileX.push(1);
-                else fileX.push(0);
+                    rowX.push(1);
+                else rowX.push(0);
             }
 
             if (parY) {
                 if (i < Math.floor(kh / 2))
-                    fileY.push(-1);
+                    rowY.push(-1);
                 else if (i >= Math.floor(kh / 2))
-                    fileY.push(1);
+                    rowY.push(1);
             } else {
                 if (i < Math.floor(kh / 2))
-                    fileY.push(-1);
+                    rowY.push(-1);
                 else if (i > Math.floor(kh / 2))
-                    fileY.push(1);
-                else fileY.push(0);
+                    rowY.push(1);
+                else rowY.push(0);
             }
         }
-        prewittX.push(fileX);
-        prewittY.push(fileY);
+        prewittX.push(rowX);
+        prewittY.push(rowY);
     }
 
     return borderShader(prewittX, prewittY, kw, kh, direction);
@@ -725,29 +729,29 @@ function sobelShader(kw, kh, direction) {
     const midX = Math.floor(kw / 2);
 
     for (let i = 0; i < kh; i++) {
-        const fileX = [];
-        const fileY = [];
+        const rowX = [];
+        const rowY = [];
 
         for (let j = 0; j < kw; j++) {
             if (parX_X) {
                 if (j < midX) {
-                    fileX.push(-x_X);
+                    rowX.push(-x_X);
 
                     if (j < midX - 1)
                         x_X++;
                 } else if (j >= midX) {
-                    fileX.push(x_X);
+                    rowX.push(x_X);
                     x_X--;
                 }
             } else {
                 if (j < midX) {
-                    fileX.push(-x_X);
+                    rowX.push(-x_X);
                     x_X++;
                 } else if (j > midX) {
-                    fileX.push(x_X);
+                    rowX.push(x_X);
                     x_X--;
                 } else {
-                    fileX.push(0);
+                    rowX.push(0);
                     x_X--;
                 }
             }
@@ -756,18 +760,18 @@ function sobelShader(kw, kh, direction) {
                 let value = x_Y;
 
                 if (i == midX && !parY_Y)
-                    fileY.push(0);
+                    rowY.push(0);
                 else {
                     if (i < midX)
                         value = -value;
 
                     if (j < midX) {
-                        fileY.push(value);
+                        rowY.push(value);
 
                         if (j < midX - 1)
                             x_Y++;
                     } else if (j >= midX) {
-                        fileY.push(value);
+                        rowY.push(value);
                         x_Y--;
                     }
                 }
@@ -775,16 +779,16 @@ function sobelShader(kw, kh, direction) {
                 let value = x_Y;
 
                 if (i == midX && !parY_Y)
-                    fileY.push(0);
+                    rowY.push(0);
                 else {
                     if (i < midX)
                         value = -value;
 
                     if (j < midX) {
-                        fileY.push(value);
+                        rowY.push(value);
                         x_Y++;
                     } else {
-                        fileY.push(value);
+                        rowY.push(value);
                         x_Y--;
                     }
                 }
@@ -813,8 +817,8 @@ function sobelShader(kw, kh, direction) {
             else y_Y--;
         }
 
-        sobelX.push(fileX);
-        sobelY.push(fileY);
+        sobelX.push(rowX);
+        sobelY.push(rowY);
 
         x_X = y_X;
         x_Y = y_Y;
@@ -828,14 +832,14 @@ function robertsShader(kw, kh, direction) {
     const robertsY = [];
 
     for (let i = 0; i < kh; i++) {
-        const fileX = [];
-        const fileY = [];
+        const rowX = [];
+        const rowY = [];
         for (let j = 0; j < kw; j++) {
-            fileX.push(0);
-            fileY.push(0);
+            rowX.push(0);
+            rowY.push(0);
         }
-        robertsX.push(fileX);
-        robertsY.push(fileY);
+        robertsX.push(rowX);
+        robertsY.push(rowY);
     }
 
     robertsX[0][0] = 1;
@@ -858,38 +862,38 @@ function gradientShader(kw, kh, type) {
     if (kh % 2 == 0) parY = 1;
 
     for (let i = 0; i < kh; i++) {
-        const fileX = [];
-        const fileY = [];
+        const rowX = [];
+        const rowY = [];
 
         for (let j = 0; j < kw; j++) {
             if (parX) {
                 if (j < Math.floor(kw / 2))
-                    fileX.push(-1);
+                    rowX.push(-1);
                 else if (j >= Math.floor(kw / 2))
-                    fileX.push(1);
+                    rowX.push(1);
             } else {
                 if (j < Math.floor(kw / 2))
-                    fileX.push(-1);
+                    rowX.push(-1);
                 else if (j > Math.floor(kw / 2))
-                    fileX.push(1);
-                else fileX.push(0);
+                    rowX.push(1);
+                else rowX.push(0);
             }
 
             if (parY) {
                 if (i < Math.floor(kh / 2))
-                    fileY.push(-1);
+                    rowY.push(-1);
                 else if (i >= Math.floor(kh / 2))
-                    fileY.push(1);
+                    rowY.push(1);
             } else {
                 if (i < Math.floor(kh / 2))
-                    fileY.push(-1);
+                    rowY.push(-1);
                 else if (i > Math.floor(kh / 2))
-                    fileY.push(1);
-                else fileY.push(0);
+                    rowY.push(1);
+                else rowY.push(0);
             }
         }
-        prewittX.push(fileX);
-        prewittY.push(fileY);
+        prewittX.push(rowX);
+        prewittY.push(rowY);
     }
 
     let kernelX = '';
@@ -1017,35 +1021,17 @@ function sharpenShader(kw, kh) {
 
 function embossShader(kw, kh) {
     let matrix = [];
-    const size = kw;
 
-    if (size === 3) {
-        matrix = [
-            [-2, -1,  0],
-            [-1,  1,  1],
-            [ 0,  1,  2]
-        ];
+    for (let i = 0; i < kh; i++) {
+        const row = [];
+        for (let j = 0; j < kw; j++) {
+            row.push(0);
+        }
+        matrix.push(row);
     }
-    if (size === 5) {
-        matrix = [
-            [ -4, -2, -1,  0,  0],
-            [ -2, -1, -1,  0,  0],
-            [ -1, -1,  1,  1,  1],
-            [  0,  0,  1,  1,  2],
-            [  0,  0,  1,  2,  4]
-        ];
-    }
-    if (size === 7) {
-        matrix = [
-            [ -16,  -8, -4, -2,  0,   0,   0],
-            [  -8,  -4, -2, -1,  0,   0,   0],
-            [  -4,  -2, -1, -1,  0,   0,   0],
-            [  -2,  -1, -1,  1,  1,   1,   2],
-            [   0,   0,  0,  1,  1,   2,   4],
-            [   0,   0,  0,  1,  2,   4,   8],
-            [   0,   0,  0,  2,  4,   8,  16]
-        ];
-    }
+
+    matrix[0][0] = -1;
+    matrix[kh - 1][kw - 1] = 1;
 
     let kernel = '';
 
@@ -1084,6 +1070,11 @@ function embossShader(kw, kh) {
                     result = result + vec3<f32>(color.r * k, color.g * k, color.b * k);
                 }
             }
+
+            result = result + vec3<f32>(0.5, 0.5, 0.5);
+            let prom = (result.r + result.g + result.b) / 3.0;
+
+            result = vec3<f32>(prom, prom, prom);
 
             result = clamp(result, vec3<f32>(0.0), vec3<f32>(1.0));
             return vec4<f32>(result, 1.0);   
@@ -1276,7 +1267,7 @@ function kernelCustom() {
     const matrix = [];
 
     for (let i = 0; i < 7; i++) {
-        const file = [];
+        const row = [];
 
         for (let j = 0; j < 7; j++) {
             const input = document.getElementById(`custom-input-${i * 7 + j + 1}`);
@@ -1286,11 +1277,11 @@ function kernelCustom() {
                 if (value === '') value = 0;
                 input.value = value;
 
-                file.push(parseFloat(value));
+                row.push(parseFloat(value));
             }
         }
 
-        matrix.push(file);
+        matrix.push(row);
     }
 
     let kernel = '';
@@ -2166,7 +2157,7 @@ async function main() {
             const x = parseInt(document.getElementById('emboss-input-x').value)
             const y = parseInt(document.getElementById('emboss-input-y').value)
 
-            if (isValidKernelSharpen(x, y))
+            if (isValidKernel(x, y))
                 initWebGPU(embossShader(x, y), true); 
         });
         document.getElementById('menu-gradient-m').addEventListener('click', (event) => {
@@ -2185,14 +2176,10 @@ async function main() {
         });
 
         // OpenCV
-        document.getElementById('menu-erosion').addEventListener('click', (event) => {
-            // initWebGPU(erosionShader(), true);
-            initOpenCV(0, true);
-        });
-        document.getElementById('menu-dilate').addEventListener('click', (event) => {
-            // initWebGPU(dilateShader(), true);
-            initOpenCV(1, true);
-        });
+        document.getElementById('menu-erosion').addEventListener('click', (event) => { initOpenCV(0, true); });
+        document.getElementById('menu-dilate').addEventListener('click', (event) => { initOpenCV(1, true); });
+        document.getElementById('menu-opening').addEventListener('click', (event) => { initOpenCV(2, true); });
+        document.getElementById('menu-closing').addEventListener('click', (event) => { initOpenCV(3, true); });
     }
 }
 // --- End Init --- //
@@ -2214,6 +2201,7 @@ function isCvLoaded() {
 }
 
 async function initOpenCV(type, override = false) {
+    console.log('1');
     if (isCvLoaded()) {
         const gpuCanvas2d = document.getElementById('gpu-canvas-2d');
 
@@ -2226,8 +2214,12 @@ async function initOpenCV(type, override = false) {
 
         if (type === 0) 
             erosionCv(cv, auxCanvas);
-        else 
+        else if (type === 1)
             dilateCv(cv, auxCanvas);
+        else if (type === 2)
+            openingCv(cv, auxCanvas);
+        else if (type === 3)
+            closingCv(cv, auxCanvas);
 
         const gpuCtx = gpuCanvas2d.getContext('2d');
         gpuCtx.drawImage(auxCanvas, 0, 0);
@@ -2263,7 +2255,13 @@ function erosionCv(cv, canvas) {
     let y = document.getElementById('erosion-input-y').value;
 
     let mat = cv.imread(canvas);
-    let kernel = cv.Mat.ones(parseInt(x), parseInt(y), cv.CV_8U);
+    let kernel;
+
+    if (isCustomMorfology)
+        kernel = cv.matFromArray(xCustomMorfology, yCustomMorfology, cv.CV_8U, kernelCustomMorfology.flat());
+    else kernel = cv.Mat.ones(parseInt(x), parseInt(y), cv.CV_8U);
+
+    isCustomMorfology = false;
 
     cv.erode(mat, mat, kernel);
     cv.imshow(canvas, mat);
@@ -2277,12 +2275,108 @@ function dilateCv(cv, canvas) {
     let y = document.getElementById('dilate-input-y').value;
 
     let mat = cv.imread(canvas);
-    let kernel = cv.Mat.ones(parseInt(x), parseInt(y), cv.CV_8U);
+    let kernel;
+
+    if (isCustomMorfology)
+        kernel = cv.matFromArray(xCustomMorfology, yCustomMorfology, cv.CV_8U, kernelCustomMorfology.flat());
+    else kernel = cv.Mat.ones(parseInt(x), parseInt(y), cv.CV_8U);
+
+    isCustomMorfology = false;
 
     cv.dilate(mat, mat, kernel);
     cv.imshow(canvas, mat);
 
     mat.delete();
     kernel.delete();
+}
+
+function openingCv(cv, canvas) {
+    let x = document.getElementById('opening-input-x').value;
+    let y = document.getElementById('opening-input-y').value;
+
+    let mat = cv.imread(canvas);
+    let kernel;
+
+    if (isCustomMorfology)
+        kernel = cv.matFromArray(xCustomMorfology, yCustomMorfology, cv.CV_8U, kernelCustomMorfology.flat());
+    else kernel = cv.Mat.ones(parseInt(x), parseInt(y), cv.CV_8U);
+
+    isCustomMorfology = false;
+
+    cv.erode(mat, mat, kernel);
+    cv.dilate(mat, mat, kernel);
+    cv.imshow(canvas, mat);
+
+    mat.delete();
+    kernel.delete();
+}
+
+function closingCv(cv, canvas) {
+    let x = document.getElementById('closing-input-x').value;
+    let y = document.getElementById('closing-input-y').value;
+
+    let mat = cv.imread(canvas);
+    let kernel;
+
+    if (isCustomMorfology)
+        kernel = cv.matFromArray(xCustomMorfology, yCustomMorfology, cv.CV_8U, kernelCustomMorfology.flat());
+    else kernel = cv.Mat.ones(parseInt(x), parseInt(y), cv.CV_8U);
+
+    isCustomMorfology = false;
+
+    cv.dilate(mat, mat, kernel);
+    cv.erode(mat, mat, kernel);
+    cv.imshow(canvas, mat);
+
+    mat.delete();
+    kernel.delete();
+}
+
+async function customMorfology(type) {
+    const modal = document.getElementById('custom-kernel-morfology-modal');
+
+    modal.style.display = 'none';
+
+    let customInputX = document.getElementById('custom-input-morfology-x').value;
+    let customInputY = document.getElementById('custom-input-morfology-y').value;
+
+    if (customInputX === '') customInputX = 3;
+    if (customInputY === '') customInputY = 3;
+
+    customInputX = parseInt(customInputX);
+    customInputY = parseInt(customInputY);
+
+    if (customInputX < 1) customInputX = 1;
+    if (customInputX > 7) customInputX = 7;
+    if (customInputY < 1) customInputY = 1;
+    if (customInputY > 7) customInputY = 7;
+
+    xCustomMorfology = customInputX;
+    yCustomMorfology = customInputY;
+
+    const matrix = [];
+
+    for (let i = 0; i < xCustomMorfology; i++) {
+        const row = [];
+
+        for (let j = 0; j < yCustomMorfology; j++) {
+            const input = document.getElementById(`custom-input-morfology-${i * 7 + j + 1}`);
+
+            if (input.style.display !== 'none') {
+                let value = input.value;
+                if (value === '') value = 0;
+                input.value = value;
+
+                row.push(parseInt(value));
+            }
+        }
+
+        matrix.push(row);
+    }
+
+    kernelCustomMorfology = matrix;
+    isCustomMorfology = true;
+
+    initOpenCV(type, true);
 }
 // --- End OpenCv --- //

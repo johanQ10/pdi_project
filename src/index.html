@@ -61,6 +61,38 @@
                             <input type="number" id="dilate-input-x" class="input-style filters" value="3" step="1" min="1" max="7">
                             <input type="number" id="dilate-input-y" class="input-style filters" value="3" step="1" min="1" max="7">
                         </a>
+                        <a href="#">
+                            <span id="menu-opening"><b><u>Apertura</u></b></span>
+                            <input type="number" id="opening-input-x" class="input-style filters" value="3" step="1" min="1" max="7">
+                            <input type="number" id="opening-input-y" class="input-style filters" value="3" step="1" min="1" max="7">
+                        </a>
+                        <a href="#">
+                            <span id="menu-closing"><b><u>Cierre</u></b></span>
+                            <input type="number" id="closing-input-x" class="input-style filters" value="3" step="1" min="1" max="7">
+                            <input type="number" id="closing-input-y" class="input-style filters" value="3" step="1" min="1" max="7">
+                        </a>
+                        <a href="#" id="menu-morfology-custom"><span><b><u>Custom</u></b></span></a>
+                    </div>
+                </div>
+                <!-- Modal for custom kernel morfology -->
+                <div id="custom-kernel-morfology-modal" class="modal" style="display:none;">
+                    <div class="modal-content">
+                        <span class="close" id="close-custom-morfology-modal">&times;</span>
+                        <h2 style="margin:0px 0px 12px 0px;">Elemento estructurante Personalizado</h2>
+                        <div>
+                            <h4 style="margin: 0px;display: inline-block;">Tamaño del Kernel</h4>
+                            <input type="number" id="custom-input-morfology-x" class="input-style filters" value="3" step="1" min="1" max="7">
+                            <input type="number" id="custom-input-morfology-y" class="input-style filters" value="3" step="1" min="1" max="7">
+                        </div>
+                        <form id="custom-kernel-morfology-form">
+                            <div class="custom-kernel-inputs-morfology">
+                                <!-- Inputs will be moved here by JS -->
+                            </div>
+                            <button class="menu-btn" onclick="customMorfology(0)">Erosión</button>
+                            <button class="menu-btn" onclick="customMorfology(1)">Dilatación</button>
+                            <button class="menu-btn" onclick="customMorfology(2)">Apertura</button>
+                            <button class="menu-btn" onclick="customMorfology(3)">Cierre</button>
+                        </form>
                     </div>
                 </div>
                 <!-- Escala -->

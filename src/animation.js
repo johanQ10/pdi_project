@@ -90,6 +90,90 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
+// Modal logic for custom kernel morfology
+document.addEventListener('DOMContentLoaded', function() {
+    const menuCustom = document.getElementById('menu-morfology-custom');
+    const modal = document.getElementById('custom-kernel-morfology-modal');
+    const closeBtn = document.getElementById('close-custom-morfology-modal');
+    const form = document.getElementById('custom-kernel-morfology-form');
+    const inputsContainer = document.querySelector('.custom-kernel-inputs-morfology');
+    const customInputX = document.getElementById('custom-input-morfology-x');
+    const customInputY = document.getElementById('custom-input-morfology-y');
+
+    if (menuCustom && modal && closeBtn && form && inputsContainer) {
+        // Move all custom-input-X from DOM to modal
+        const inputIds = Array.from({length: 49}, (_, i) => `custom-input-morfology-${i + 1}`);
+
+        inputIds.forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                inputsContainer.appendChild(input);
+                alert('Input ' + id + ' moved to modal.');
+            } else {
+                const newInput = document.createElement('input');
+                newInput.type = 'number';
+                newInput.id = id;
+                newInput.className = 'input-style filters-kernel';
+                newInput.value = '0';
+                newInput.step = '1';
+                inputsContainer.appendChild(newInput);
+
+                if ((parseInt(id.split('-')[3]) % 7) === 0) {
+                    const endline = document.createElement('br');
+                    inputsContainer.appendChild(endline);
+                }
+            }
+        });
+
+        menuCustom.addEventListener('click', function(e) {
+            e.preventDefault();
+            modal.style.display = 'block';
+        });
+        closeBtn.addEventListener('click', function() {
+            modal.style.display = 'none';
+        });
+        window.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+
+        customInputX.addEventListener('change', function() {
+            const x = parseInt(customInputX.value);
+            const y = parseInt(customInputY.value);
+            adjustKernelInputsMorfology(x, y);
+        });
+        customInputY.addEventListener('change', function() {
+            const x = parseInt(customInputX.value);
+            const y = parseInt(customInputY.value);
+            adjustKernelInputsMorfology(x, y);
+        });
+
+        const x = parseInt(customInputX.value);
+        const y = parseInt(customInputY.value);
+        adjustKernelInputsMorfology(x, y);
+    }
+
+    function adjustKernelInputsMorfology(x, y) {
+        let indexX = 0, indexY = 0;
+
+        for (let i = 0; i < 7; i++) {
+            for (let j = 0; j < 7; j++) {
+                const input = document.getElementById(`custom-input-morfology-${i * 7 + j + 1}`);
+
+                if (indexX < x && indexY < y) {
+                    input.style.display = 'inline-block';
+                } else {
+                    input.style.display = 'none';
+                }
+
+                indexX++;
+            }
+            indexY++;
+            indexX = 0;
+        }
+    }
+});
 // animation.js
 // Controla la expansión/colapso animada de los submenús laterales
 document.addEventListener('DOMContentLoaded', function() {
