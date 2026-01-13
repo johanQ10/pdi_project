@@ -114,18 +114,6 @@
                         <a href="#"><span id="menu-brightness"><b>Brillo</b></span><input type="number" id="brightness-input" class="input-style" value="0" step="0.1" min="-1.0" max="1.0"></a>
                         <a href="#"><span id="menu-contrast"><b>Contraste</b></span><input type="number" id="contrast-input" class="input-style" value="1" step="0.1" min="0.0" max="10.0"></a>
                         <a href="#"><span id="menu-gamma"><b>Gamma</b></span><input type="number" id="gamma-input" class="input-style" value="1" step="0.1" min="0.0" max="5.0"></a>
-                        <a href="#">
-                            <b>Umbral</b>
-                            <span>
-                            <input type="number" id="umbral-simple-input" class="input-style" value="1" step="0.1" min="0.0" max="1.0">
-                            <button id="umbral-simple-btn" type="button" class="menu-btn">Go</button>
-                            </span>
-                        </a>
-                        <a href="#">
-                            <b>Umbral Multiple</b>
-                            <input type="text" id="umbral-multiple-input" class="input-style" style="width: 60px;" placeholder="Ej: 0.1, 0.2, 0.3, 0.4">
-                            <button id="umbral-multiple-btn" type="button" class="menu-btn">Go</button>
-                        </a>
                     </div>
                 </div>
                 <!-- Transformaciones -->
@@ -176,6 +164,21 @@
                         </a>
                     </div>
                 </div>
+                <!-- Gradiente -->
+                <div class="menu-group">
+                    <button class="menu-group-title" type="button">Gradiente</button>
+                    <div class="menu-group-content">
+                        <a href="#">
+                            <span id="menu-gradient-m"><b><u>Magnitud</u></b></span>
+                            <input type="number" id="gradient-m-input-x" class="input-style filters" value="3" step="1" min="1" max="7">
+                            <input type="number" id="gradient-m-input-y" class="input-style filters" value="3" step="1" min="1" max="7">
+                        </a>
+                        <a href="#"><span id="menu-gradient-a"><b><u>Ángulo</u></b></span>
+                            <input type="number" id="gradient-a-input-x" class="input-style filters" value="3" step="1" min="1" max="7">
+                            <input type="number" id="gradient-a-input-y" class="input-style filters" value="3" step="1" min="1" max="7">
+                        </a>
+                    </div>
+                </div>
                 <!-- Bordes -->
                 <div class="menu-group">
                     <button class="menu-group-title" type="button">Bordes</button>
@@ -222,18 +225,21 @@
                         </a>
                     </div>
                 </div>
-                <!-- Gradiente -->
+                <!-- Umbral -->
                 <div class="menu-group">
-                    <button class="menu-group-title" type="button">Gradiente</button>
+                    <button class="menu-group-title" type="button">Umbralización</button>
                     <div class="menu-group-content">
                         <a href="#">
-                            <span id="menu-gradient-m"><b><u>Magnitud</u></b></span>
-                            <input type="number" id="gradient-m-input-x" class="input-style filters" value="3" step="1" min="1" max="7">
-                            <input type="number" id="gradient-m-input-y" class="input-style filters" value="3" step="1" min="1" max="7">
+                            <b>Umbral</b>
+                            <span>
+                            <input type="number" id="umbral-simple-input" class="input-style" value="1" step="0.1" min="0.0" max="1.0">
+                            <button id="umbral-simple-btn" type="button" class="menu-btn">Go</button>
+                            </span>
                         </a>
-                        <a href="#"><span id="menu-gradient-a"><b><u>Ángulo</u></b></span>
-                            <input type="number" id="gradient-a-input-x" class="input-style filters" value="3" step="1" min="1" max="7">
-                            <input type="number" id="gradient-a-input-y" class="input-style filters" value="3" step="1" min="1" max="7">
+                        <a href="#">
+                            <b>Umbral Multiple</b>
+                            <input type="text" id="umbral-multiple-input" class="input-style" style="width: 60px;" placeholder="Ej: 0.1, 0.2, 0.3, 0.4">
+                            <button id="umbral-multiple-btn" type="button" class="menu-btn">Go</button>
                         </a>
                     </div>
                 </div>
@@ -269,6 +275,7 @@
                 <div id="container-gpu-canvas" style="justify-items: center;">
                     <div id="gpu-canvas-container" style="position: relative; width: 100%; height: 100%;">
                         <canvas id="gpu-canvas-2d" style="display: none;justify-self: center;"></canvas>
+                        <canvas id="gpu-canvas-2d-aux" style="display: none;justify-self: center;"></canvas>
                         <canvas id="gpu-canvas" style="display: none;justify-self: center;"></canvas>
                         <!-- Línea horizontal desplazable -->
                         <div id="horizontal-line"></div>

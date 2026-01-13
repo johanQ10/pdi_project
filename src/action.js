@@ -6,6 +6,9 @@ let imageTemporal;
 let bitsPerPixel = 0;
 let brightnessLevel = 0;
 let contrastLevel = 1;
+let gammaLevel = 1;
+let zoomLevel = 1;
+let typeZoom = 'prox';
 let colorValue = "#ff0000";
 let rotate = false;
 let kernelCustomMorfology = [];
@@ -180,92 +183,6 @@ function colorScaleShader(color) {
     `;
 }
 
-function brightnessShader(brightnessLevel) {
-    return vertexShader + 
-    `
-    @fragment
-    fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-        let color = textureSample(myTexture, mySampler, input.uv);
-        var r = color.r + ${brightnessLevel};
-        var g = color.g + ${brightnessLevel};
-        var b = color.b + ${brightnessLevel};
-
-        r = clamp(r, 0.0, 1.0);
-        g = clamp(g, 0.0, 1.0);
-        b = clamp(b, 0.0, 1.0);
-
-        return vec4<f32>(r, g, b, color.a);
-    }
-    `;
-}
-
-function contrastShader(contrastLevel) {
-    return vertexShader + 
-    `
-    @fragment
-    fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-        let color = textureSample(myTexture, mySampler, input.uv);
-        var r = (color.r - 0.5) * ${contrastLevel} + 0.5;
-        var g = (color.g - 0.5) * ${contrastLevel} + 0.5;
-        var b = (color.b - 0.5) * ${contrastLevel} + 0.5;
-
-        r = clamp(r, 0.0, 1.0);
-        g = clamp(g, 0.0, 1.0);
-        b = clamp(b, 0.0, 1.0);
-
-        return vec4<f32>(r, g, b, color.a);
-    }
-    `;
-}
-
-function zoomProxShader(zoomLevel) {
-    return vertexShader + 
-    `
-    @fragment
-    fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-        let center = vec2<f32>(0.5, 0.5);
-        let uvZoom = (input.uv - center) / ${zoomLevel} + center;
-        let texSize = vec2<f32>(textureDimensions(myTexture, 0));
-        let uvNearest = floor(uvZoom * texSize) / texSize;
-
-        return textureSample(myTexture, mySampler, uvNearest);
-    }
-    `;
-}
-
-function zoomBilinealShader(zoomLevel) {
-    return vertexShader + 
-    `
-    @fragment
-    fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-        let center = vec2<f32>(0.5, 0.5);
-        let uvZoom = (input.uv - center) / ${zoomLevel} + center;
-        let uvClamped = clamp(uvZoom, vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0));
-
-        return textureSample(myTexture, mySampler, uvClamped);
-    }
-    `;
-}
-
-function gammaShader(gammaValue) {
-    return vertexShader + 
-    `
-    @fragment
-    fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-        let color = textureSample(myTexture, mySampler, input.uv);
-        var r = pow(color.r, 1.0 / ${gammaValue});
-        var g = pow(color.g, 1.0 / ${gammaValue});
-        var b = pow(color.b, 1.0 / ${gammaValue});
-
-        r = clamp(r, 0.0, 1.0);
-        g = clamp(g, 0.0, 1.0);
-        b = clamp(b, 0.0, 1.0);
-
-        return vec4<f32>(r, g, b, color.a);
-    }
-    `;
-}
-
 function umbralSimpleShader(umbral) {
     return vertexShader + 
     `
@@ -390,6 +307,137 @@ function rotateShader(value) {
 
         let color = textureSample(myTexture, mySampler, uvRotate);
         return color;
+    }
+    `;
+}
+
+// Temporal Shaders
+function brightnessShader(brightness) {
+    return vertexShader + 
+    `
+    @fragment
+    fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+        let color = textureSample(myTexture, mySampler, input.uv);
+        var r = color.r + ${brightness};
+        var g = color.g + ${brightness};
+        var b = color.b + ${brightness};
+
+        r = clamp(r, 0.0, 1.0);
+        g = clamp(g, 0.0, 1.0);
+        b = clamp(b, 0.0, 1.0);
+
+        return vec4<f32>(r, g, b, color.a);
+    }
+    `;
+}
+
+function contrastShader(contrast) {
+    return vertexShader + 
+    `
+    @fragment
+    fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+        let color = textureSample(myTexture, mySampler, input.uv);
+        var r = (color.r - 0.5) * ${contrast} + 0.5;
+        var g = (color.g - 0.5) * ${contrast} + 0.5;
+        var b = (color.b - 0.5) * ${contrast} + 0.5;
+
+        r = clamp(r, 0.0, 1.0);
+        g = clamp(g, 0.0, 1.0);
+        b = clamp(b, 0.0, 1.0);
+
+        return vec4<f32>(r, g, b, color.a);
+    }
+    `;
+}
+
+function gammaShader(gammaValue) {
+    return vertexShader + 
+    `
+    @fragment
+    fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+        let color = textureSample(myTexture, mySampler, input.uv);
+        var r = pow(color.r, 1.0 / ${gammaValue});
+        var g = pow(color.g, 1.0 / ${gammaValue});
+        var b = pow(color.b, 1.0 / ${gammaValue});
+
+        r = clamp(r, 0.0, 1.0);
+        g = clamp(g, 0.0, 1.0);
+        b = clamp(b, 0.0, 1.0);
+
+        return vec4<f32>(r, g, b, color.a);
+    }
+    `;
+}
+
+function zoomProxShader(zoom) {
+    return vertexShader + 
+    `
+    @fragment
+    fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+        let center = vec2<f32>(0.5, 0.5);
+        let uvZoom = (input.uv - center) / ${zoom} + center;
+        let texSize = vec2<f32>(textureDimensions(myTexture, 0));
+        let uvNearest = floor(uvZoom * texSize) / texSize;
+
+        return textureSample(myTexture, mySampler, uvNearest);
+    }
+    `;
+}
+
+function zoomBilinealShader(zoom) {
+    return vertexShader + 
+    `
+    @fragment
+    fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+        let center = vec2<f32>(0.5, 0.5);
+        let uvZoom = (input.uv - center) / ${zoom} + center;
+        let uvClamped = clamp(uvZoom, vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0));
+
+        return textureSample(myTexture, mySampler, uvClamped);
+    }
+    `;
+}
+
+function temporalShader() {
+    let zoomShader = '';
+
+    if (typeZoom === 'prox') {
+        zoomShader = `
+        let texSize = vec2<f32>(textureDimensions(myTexture, 0));
+        let uvResult = floor(uvZoom * texSize) / texSize;`;
+    } else {
+        zoomShader = `
+        let uvResult = clamp(uvZoom, vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0));
+        `;
+    }
+
+    return vertexShader +
+    `
+    @fragment
+    fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+        let center = vec2<f32>(0.5, 0.5);
+        let uvZoom = (input.uv - center) / ${zoomLevel} + center;
+        ${zoomShader}
+
+        let color = textureSample(myTexture, mySampler, uvResult);
+
+        var r = color.r + ${brightnessLevel};
+        var g = color.g + ${brightnessLevel};
+        var b = color.b + ${brightnessLevel};
+
+        r = (r - 0.5) * ${contrastLevel} + 0.5;
+        g = (g - 0.5) * ${contrastLevel} + 0.5;
+        b = (b - 0.5) * ${contrastLevel} + 0.5;
+
+        r = pow(r, 1.0 / ${gammaLevel});
+        g = pow(g, 1.0 / ${gammaLevel});
+        b = pow(b, 1.0 / ${gammaLevel});
+
+        r = clamp(r, 0.0, 1.0);
+        g = clamp(g, 0.0, 1.0);
+        b = clamp(b, 0.0, 1.0);
+
+        return vec4<f32>(r, g, b, color.a);
     }
     `;
 }
@@ -1787,6 +1835,18 @@ function updateSidebar() {
     const sidebar = document.getElementById('sidebar');
 }
 
+function temporalShaders() {
+    let value = document.getElementById('zoom-input').value;
+
+    if (value === '')
+        value = '1.0';
+
+    zoomLevel = parseFloat(value);
+    typeZoom = document.querySelector('input[name="zoom-type"]:checked').value;
+
+    initWebGPU(temporalShader());
+}
+
 function render(device, context, pipeline, bindGroup, canvas, override) {
     const commandEncoder = device.createCommandEncoder();
     const textureView = context.getCurrentTexture().createView();
@@ -1806,7 +1866,12 @@ function render(device, context, pipeline, bindGroup, canvas, override) {
 
     device.queue.submit([commandEncoder.finish()]);
 
-    const canvas2d = document.getElementById('gpu-canvas-2d');
+    let canvas2d;
+
+    if (override)
+        canvas2d = document.getElementById('gpu-canvas-2d-aux');
+    else canvas2d = document.getElementById('gpu-canvas-2d');
+
     const context2d = canvas2d.getContext('2d');
 
     canvas2d.width = canvas.width;
@@ -1816,25 +1881,31 @@ function render(device, context, pipeline, bindGroup, canvas, override) {
 
     imageSrc = canvas2d.toDataURL('image/png');
 
-    if (override) {
-        resetValues();
+    if (override)
         imageProcessed.src = imageSrc;
-    }
 
     imageTemporal.src = imageSrc;
 
     let line = document.getElementById('horizontal-line');
 
     imageTemporal.onload = function() {
-        profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
-        goToTonalCurve();
-        goToHistogram();
+        if (override)
+            temporalShaders();
+        else {
+            profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
+            goToTonalCurve();
+            goToHistogram();
+        }
     }
 
     if (imageTemporal.complete) {
-        profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
-        goToTonalCurve();
-        goToHistogram();
+        if (override)
+            temporalShaders();
+        else {
+            profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
+            goToTonalCurve();
+            goToHistogram();
+        }
     }
 }
 
@@ -1843,9 +1914,9 @@ function resetValues() {
     contrastLevel = 1;
     zoomLevel = 1;
 
-    document.getElementById('brightness-input').value = 0;
-    document.getElementById('contrast-input').value = 1;
-    document.getElementById('zoom-input').value = 1;
+    document.getElementById('brightness-input').value = brightnessLevel;
+    document.getElementById('contrast-input').value = contrastLevel;
+    document.getElementById('zoom-input').value = zoomLevel;
 }
 
 function isValidKernel(x, y) {
@@ -1870,12 +1941,12 @@ function applyZoom() {
     if (value === '')
         value = '1.0';
 
-    let zoom = parseFloat(value);
-    const type = document.querySelector('input[name="zoom-type"]:checked').value;
+    zoomLevel = parseFloat(value);
+    typeZoom = document.querySelector('input[name="zoom-type"]:checked').value;
 
-    if (type === 'prox')
-        initWebGPU(zoomProxShader(zoom));//false
-    else initWebGPU(zoomBilinealShader(zoom));//false
+    if (typeZoom === 'prox')
+        initWebGPU(zoomProxShader(zoomLevel));//false
+    else initWebGPU(zoomBilinealShader(zoomLevel));//false
 }
 // --- End Utility Functions --- //
 
@@ -1982,7 +2053,7 @@ async function initWebGPU(shaderCode, override = false) {
             ],
         });
 
-        render(device, context, pipeline, bindGroup, canvas, override);//here
+        render(device, context, pipeline, bindGroup, canvas, override);
     } catch (e) {
         alert('Error: ' + e.message);
         console.error(e);
@@ -2095,18 +2166,21 @@ async function main() {
 
         document.getElementById('brightness-input').addEventListener('input', (event) => {
             brightnessLevel = parseFloat(event.target.value);
-            initWebGPU(brightnessShader(brightnessLevel));//false
+            // initWebGPU(brightnessShader(brightnessLevel));//false
+            temporalShaders();
         });
         document.getElementById('contrast-input').addEventListener('input', (event) => {
             contrastLevel = parseFloat(event.target.value);
-            initWebGPU(contrastShader(contrastLevel));//false
+            // initWebGPU(contrastShader(contrastLevel));//false
+            temporalShaders();
         });
-        document.getElementById('zoom-input').addEventListener('input', (event) => { applyZoom(); });
-        document.getElementById('zoom-prox').addEventListener('change', (event) => { applyZoom(); });
-        document.getElementById('zoom-bilineal').addEventListener('change', (event) => { applyZoom(); });
+        document.getElementById('zoom-input').addEventListener('input', (event) => { temporalShaders(); });
+        document.getElementById('zoom-prox').addEventListener('change', (event) => { temporalShaders(); });
+        document.getElementById('zoom-bilineal').addEventListener('change', (event) => { temporalShaders(); });
         document.getElementById('gamma-input').addEventListener('input', (event) => {
-            const gammaValue = parseFloat(event.target.value);
-            initWebGPU(gammaShader(gammaValue));//false
+            gammaLevel = parseFloat(event.target.value);
+            // initWebGPU(gammaShader(gammaLevel));//false
+            temporalShaders();
         });
         document.getElementById('menu-average').addEventListener('click', (event) => {
             const x = parseInt(document.getElementById('average-input-x').value)
@@ -2231,10 +2305,8 @@ async function initOpenCV(type, override = false) {
 
         imageSrc = gpuCanvas2d.toDataURL('image/png');
 
-        if (override) {
-            resetValues();
+        if (override)
             imageProcessed.src = imageSrc;
-        }
 
         imageTemporal.src = imageSrc;
 
@@ -2244,12 +2316,18 @@ async function initOpenCV(type, override = false) {
             profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
             goToTonalCurve();
             goToHistogram();
+
+            if (override) 
+                temporalShaders();
         }
 
         if (imageTemporal.complete) {
             profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
             goToTonalCurve();
             goToHistogram();
+
+            if (override) 
+                temporalShaders();
         }
     }
 }
