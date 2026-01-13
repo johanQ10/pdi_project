@@ -13,6 +13,13 @@ let xCustomMorfology = 0;
 let yCustomMorfology = 0;
 let isCustomMorfology = false;
 
+const TypeCv = {
+  EROSION: 0,
+  DILATE: 1,
+  OPENING: 2,
+  CLOSING: 3
+};
+
 let vertexShader = `
     @group(0) @binding(0) var mySampler: sampler;
     @group(0) @binding(1) var myTexture: texture_2d<f32>;
@@ -2176,10 +2183,10 @@ async function main() {
         });
 
         // OpenCV
-        document.getElementById('menu-erosion').addEventListener('click', (event) => { initOpenCV(0, true); });
-        document.getElementById('menu-dilate').addEventListener('click', (event) => { initOpenCV(1, true); });
-        document.getElementById('menu-opening').addEventListener('click', (event) => { initOpenCV(2, true); });
-        document.getElementById('menu-closing').addEventListener('click', (event) => { initOpenCV(3, true); });
+        document.getElementById('menu-erosion').addEventListener('click', (event) => { initOpenCV(TypeCv.EROSION, true); });
+        document.getElementById('menu-dilate').addEventListener('click', (event) => { initOpenCV(TypeCv.DILATE, true); });
+        document.getElementById('menu-opening').addEventListener('click', (event) => { initOpenCV(TypeCv.OPENING, true); });
+        document.getElementById('menu-closing').addEventListener('click', (event) => { initOpenCV(TypeCv.CLOSING, true); });
     }
 }
 // --- End Init --- //
@@ -2212,14 +2219,12 @@ async function initOpenCV(type, override = false) {
         const auxCtx = auxCanvas.getContext('2d');
         auxCtx.drawImage(gpuCanvas2d, 0, 0);
 
-        if (type === 0) 
-            erosionCv(cv, auxCanvas);
-        else if (type === 1)
-            dilateCv(cv, auxCanvas);
-        else if (type === 2)
-            openingCv(cv, auxCanvas);
-        else if (type === 3)
-            closingCv(cv, auxCanvas);
+        switch (type) {
+            case TypeCv.EROSION: erosionCv(cv, auxCanvas); break;
+            case TypeCv.DILATE: dilateCv(cv, auxCanvas); break;
+            case TypeCv.OPENING: openingCv(cv, auxCanvas); break;
+            case TypeCv.CLOSING: closingCv(cv, auxCanvas); break;
+        }
 
         const gpuCtx = gpuCanvas2d.getContext('2d');
         gpuCtx.drawImage(auxCanvas, 0, 0);
