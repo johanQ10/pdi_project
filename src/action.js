@@ -20,7 +20,9 @@ const TypeCv = {
   EROSION: 0,
   DILATE: 1,
   OPENING: 2,
-  CLOSING: 3
+  CLOSING: 3,
+  OTSU: 4,
+  UMBRAL: 5,
 };
 
 let vertexShader = `
@@ -2261,6 +2263,8 @@ async function main() {
         document.getElementById('menu-dilate').addEventListener('click', (event) => { initOpenCV(TypeCv.DILATE, true); });
         document.getElementById('menu-opening').addEventListener('click', (event) => { initOpenCV(TypeCv.OPENING, true); });
         document.getElementById('menu-closing').addEventListener('click', (event) => { initOpenCV(TypeCv.CLOSING, true); });
+        document.getElementById('menu-umbral-otsu').addEventListener('click', (event) => { initOpenCV(TypeCv.OTSU, true); });
+        document.getElementById('menu-umbral-custom').addEventListener('click', (event) => { initOpenCV(TypeCv.OTSU, true); });
     }
 }
 // --- End Init --- //
@@ -2282,7 +2286,6 @@ function isCvLoaded() {
 }
 
 async function initOpenCV(type, override = false) {
-    console.log('1');
     if (isCvLoaded()) {
         const gpuCanvas2d = document.getElementById('gpu-canvas-2d');
 
@@ -2298,6 +2301,8 @@ async function initOpenCV(type, override = false) {
             case TypeCv.DILATE: dilateCv(cv, auxCanvas); break;
             case TypeCv.OPENING: openingCv(cv, auxCanvas); break;
             case TypeCv.CLOSING: closingCv(cv, auxCanvas); break;
+            case TypeCv.OTSU: otsuCv(cv, auxCanvas); break;
+            case TypeCv.UMBRAL: otsuCv(cv, auxCanvas); break;
         }
 
         const gpuCtx = gpuCanvas2d.getContext('2d');
@@ -2313,21 +2318,23 @@ async function initOpenCV(type, override = false) {
         let line = document.getElementById('horizontal-line');
 
         imageTemporal.onload = function() {
-            profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
-            goToTonalCurve();
-            goToHistogram();
-
-            if (override) 
+            if (override)
                 temporalShaders();
+            else {
+                profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
+                goToTonalCurve();
+                goToHistogram();
+            }
         }
 
         if (imageTemporal.complete) {
-            profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
-            goToTonalCurve();
-            goToHistogram();
-
-            if (override) 
+            if (override)
                 temporalShaders();
+            else {
+                profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
+                goToTonalCurve();
+                goToHistogram();
+            }
         }
     }
 }
@@ -2461,5 +2468,17 @@ async function customMorfology(type) {
     isCustomMorfology = true;
 
     initOpenCV(type, true);
+}
+
+function otsuCv(cv, canvas) {
+    let src = cv.imread(canvas);
+
+    if (src.channels() > 1)
+        cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+
+    cv.threshold(src, src, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
+    cv.imshow(canvas, src);
+
+    src.delete();
 }
 // --- End OpenCv --- //
