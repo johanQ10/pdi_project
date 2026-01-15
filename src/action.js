@@ -22,7 +22,10 @@ const TypeCv = {
   OPENING: 2,
   CLOSING: 3,
   OTSU: 4,
-  UMBRAL: 5,
+  MEAN: 5,
+  MEDIAN: 6,
+  ISODATA: 7,
+  KMEANS: 8,
 };
 
 let vertexShader = `
@@ -2264,7 +2267,10 @@ async function main() {
         document.getElementById('menu-opening').addEventListener('click', (event) => { initOpenCV(TypeCv.OPENING, true); });
         document.getElementById('menu-closing').addEventListener('click', (event) => { initOpenCV(TypeCv.CLOSING, true); });
         document.getElementById('menu-umbral-otsu').addEventListener('click', (event) => { initOpenCV(TypeCv.OTSU, true); });
-        document.getElementById('menu-umbral-custom').addEventListener('click', (event) => { initOpenCV(TypeCv.OTSU, true); });
+        document.getElementById('menu-umbral-mean').addEventListener('click', (event) => { initOpenCV(TypeCv.MEAN, true); });
+        document.getElementById('menu-umbral-median').addEventListener('click', (event) => { initOpenCV(TypeCv.MEDIAN, true); });
+        document.getElementById('menu-umbral-isodata').addEventListener('click', (event) => { initOpenCV(TypeCv.ISODATA, true); });
+        document.getElementById('menu-umbral-kmeans').addEventListener('click', (event) => { initOpenCV(TypeCv.KMEANS, true); });
     }
 }
 // --- End Init --- //
@@ -2301,8 +2307,11 @@ async function initOpenCV(type, override = false) {
             case TypeCv.DILATE: dilateCv(cv, auxCanvas); break;
             case TypeCv.OPENING: openingCv(cv, auxCanvas); break;
             case TypeCv.CLOSING: closingCv(cv, auxCanvas); break;
-            case TypeCv.OTSU: otsuCv(cv, auxCanvas); break;
-            case TypeCv.UMBRAL: otsuCv(cv, auxCanvas); break;
+            case TypeCv.OTSU: umbralOtsuCv(cv, auxCanvas); break;
+            case TypeCv.MEAN: umbralMeanCv(cv, auxCanvas); break;
+            case TypeCv.MEDIAN: umbralMedianCv(cv, auxCanvas); break;
+            case TypeCv.ISODATA: umbralIsodataCv(cv, auxCanvas); break;
+            case TypeCv.KMEANS: umbralKMeansCv(cv, auxCanvas); break;
         }
 
         const gpuCtx = gpuCanvas2d.getContext('2d');
@@ -2470,7 +2479,7 @@ async function customMorfology(type) {
     initOpenCV(type, true);
 }
 
-function otsuCv(cv, canvas) {
+function umbralOtsuCv(cv, canvas) {
     let src = cv.imread(canvas);
 
     if (src.channels() > 1)
@@ -2479,6 +2488,133 @@ function otsuCv(cv, canvas) {
     cv.threshold(src, src, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
     cv.imshow(canvas, src);
 
+    src.delete();
+}
+
+function thresholdMean(src) {
+    let sum = 0;
+
+    for (let i = 0; i < src.rows; i++) {
+        for (let j = 0; j < src.cols; j++) {
+            sum += src.ucharPtr(i, j)[0];
+        }
+    }
+
+    let total = src.rows * src.cols;
+    return Math.round(sum / total);
+}
+
+function umbralMeanCv(cv, canvas) {
+    let src = cv.imread(canvas);
+
+    if (src.channels() > 1)
+        cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+
+    
+    let threshold = thresholdMean(src);
+
+    cv.threshold(src, src, threshold, 255, cv.THRESH_BINARY);
+    cv.imshow(canvas, src);
+    src.delete();
+}
+
+function umbralMedianCv(cv, canvas) {
+    let src = cv.imread(canvas);
+
+    if (src.channels() > 1)
+        cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+
+    let values = [];
+
+    for (let i = 0; i < src.rows; i++) {
+        for (let j = 0; j < src.cols; j++) {
+            values.push(src.ucharPtr(i, j)[0]);
+        }
+    }
+
+    values.sort((a, b) => a - b);
+
+    let mid = Math.floor(values.length / 2);
+    let threshold = values.length % 2 === 0 ? Math.round((values[mid - 1] + values[mid]) / 2) : values[mid];
+
+    cv.threshold(src, src, threshold, 255, cv.THRESH_BINARY);
+    cv.imshow(canvas, src);
+    src.delete();
+}
+
+function umbralIsodataCv(cv, canvas) {
+    let src = cv.imread(canvas);
+
+    if (src.channels() > 1)
+        cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+
+    let values = [];
+
+    for (let i = 0; i < src.rows; i++) {
+        for (let j = 0; j < src.cols; j++) {
+            values.push(src.ucharPtr(i, j)[0]);
+        }
+    }
+
+    let t = thresholdMean(src);
+    let prevT = -1;
+
+    while (t !== prevT) {
+        let group1 = values.filter(v => v <= t);
+        let group2 = values.filter(v => v > t);
+        let mean1 = group1.length ? group1.reduce((a, b) => a + b, 0) / group1.length : 0;
+        let mean2 = group2.length ? group2.reduce((a, b) => a + b, 0) / group2.length : 0;
+
+        prevT = t;
+
+        t = Math.round((mean1 + mean2) / 2);
+    }
+    let threshold = t;
+
+    cv.threshold(src, src, threshold, 255, cv.THRESH_BINARY);
+    cv.imshow(canvas, src);
+    src.delete();
+}
+
+function umbralKMeansCv(cv, canvas) {
+    let src = cv.imread(canvas);
+
+    if (src.channels() > 1)
+        cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+    // K-means con k=2 (fondo y objeto)
+    let values = [];
+
+    for (let i = 0; i < src.rows; i++) {
+        for (let j = 0; j < src.cols; j++) {
+            values.push(src.ucharPtr(i, j)[0]);
+        }
+    }
+
+    let c1 = 0, c2 = 255;
+    let changed = true;
+
+    while (changed) {
+        let group1 = [], group2 = [];
+
+        for (let v of values) {
+            if (Math.abs(v - c1) < Math.abs(v - c2))
+                group1.push(v);
+            else group2.push(v);
+        }
+
+        let newC1 = group1.length ? group1.reduce((a, b) => a + b, 0) / group1.length : c1;
+        let newC2 = group2.length ? group2.reduce((a, b) => a + b, 0) / group2.length : c2;
+
+        changed = (Math.round(newC1) !== Math.round(c1)) || (Math.round(newC2) !== Math.round(c2));
+
+        c1 = newC1;
+        c2 = newC2;
+    }
+    // El umbral es el punto medio entre los dos centroides
+    let threshold = Math.round((c1 + c2) / 2);
+
+    cv.threshold(src, src, threshold, 255, cv.THRESH_BINARY);
+    cv.imshow(canvas, src);
     src.delete();
 }
 // --- End OpenCv --- //
