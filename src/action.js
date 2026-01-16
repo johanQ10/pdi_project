@@ -26,6 +26,7 @@ const TypeCv = {
   MEDIAN: 6,
   ISODATA: 7,
   KMEANS: 8,
+  EQUALIZATION: 9
 };
 
 let vertexShader = `
@@ -2271,6 +2272,7 @@ async function main() {
         document.getElementById('menu-umbral-median').addEventListener('click', (event) => { initOpenCV(TypeCv.MEDIAN, true); });
         document.getElementById('menu-umbral-isodata').addEventListener('click', (event) => { initOpenCV(TypeCv.ISODATA, true); });
         document.getElementById('menu-umbral-kmeans').addEventListener('click', (event) => { initOpenCV(TypeCv.KMEANS, true); });
+        document.getElementById('menu-equalization').addEventListener('click', (event) => { initOpenCV(TypeCv.EQUALIZATION, true); });
     }
 }
 // --- End Init --- //
@@ -2312,6 +2314,7 @@ async function initOpenCV(type, override = false) {
             case TypeCv.MEDIAN: umbralMedianCv(cv, auxCanvas); break;
             case TypeCv.ISODATA: umbralIsodataCv(cv, auxCanvas); break;
             case TypeCv.KMEANS: umbralKMeansCv(cv, auxCanvas); break;
+            case TypeCv.EQUALIZATION: equalizationCv(cv, auxCanvas); break;
         }
 
         const gpuCtx = gpuCanvas2d.getContext('2d');
@@ -2349,6 +2352,8 @@ async function initOpenCV(type, override = false) {
 }
 
 // --- OpenCv --- //
+
+// Morfology
 function erosionCv(cv, canvas) {
     let x = document.getElementById('erosion-input-x').value;
     let y = document.getElementById('erosion-input-y').value;
@@ -2479,6 +2484,7 @@ async function customMorfology(type) {
     initOpenCV(type, true);
 }
 
+// Umbral
 function umbralOtsuCv(cv, canvas) {
     let src = cv.imread(canvas);
 
@@ -2616,5 +2622,40 @@ function umbralKMeansCv(cv, canvas) {
     cv.threshold(src, src, threshold, 255, cv.THRESH_BINARY);
     cv.imshow(canvas, src);
     src.delete();
+}
+
+function equalizationCv(cv, canvas) {
+    let src = cv.imread(canvas);
+
+    if (src.channels() === 1) {
+        cv.equalizeHist(src, src);
+        cv.imshow(canvas, src);
+        src.delete();
+        return;
+    }
+
+    // Si tiene 4 canales, convertir a 3 canales (RGB)
+    let rgb = new cv.Mat();
+
+    if (src.channels() === 4)
+        cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB, 0);
+
+    let ycrcb = new cv.Mat();
+    cv.cvtColor(rgb, ycrcb, cv.COLOR_RGB2YCrCb, 0);
+
+    let channels = new cv.MatVector();
+    cv.split(ycrcb, channels);
+
+    // Ecualizar solo el canal Y (luminancia)
+    cv.equalizeHist(channels.get(0), channels.get(0));
+    cv.merge(channels, ycrcb);
+    cv.cvtColor(ycrcb, rgb, cv.COLOR_YCrCb2RGB, 0);
+    cv.cvtColor(rgb, src, cv.COLOR_RGB2RGBA, 0);
+    cv.imshow(canvas, src);
+
+    rgb.delete();
+    src.delete();
+    ycrcb.delete();
+    channels.delete();
 }
 // --- End OpenCv --- //
