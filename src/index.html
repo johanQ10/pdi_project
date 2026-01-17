@@ -26,6 +26,9 @@
                     <button id="btn-reset-image" title="Resetear imagen">
                         <span aria-label="Resetear imagen" role="img">🔄</span>
                     </button>
+                    <button id="btn-pan-image" title="Reubicar imagen">
+                        <span aria-label="Reubicar imagen" role="img">🧭</span>
+                    </button>
                 </div>
                 <!-- Modal para guardar imagen (diseño igual a custom-kernel-modal) -->
                 <div id="save-image-modal" class="modal" style="display:none;">
@@ -137,7 +140,7 @@
                         </a>
                         <a href="#">
                             <b>Rotar</b>
-                            <input type="number" id="rotate-input" class="input-style" value="1" step="90">
+                            <input type="number" id="rotate-input" class="input-style" value="0" step="1">
                             <span>
                                 <button id="rotate-btn" type="button" class="menu-btn">Go</button>
                                 <button id="rotate-left-btn" type="button" class="menu-btn">-90°</button>
@@ -280,6 +283,7 @@
             <div style="width: 100%;padding-top: 10px;">
                 <div id="container-gpu-canvas" style="justify-items: center;">
                     <div id="gpu-canvas-container" style="position: relative; width: 100%; height: 100%;">
+                        <canvas id="gpu-canvas-2d-panned" style="display: none;justify-self: center;border: solid;"></canvas>
                         <canvas id="gpu-canvas-2d" style="display: none;justify-self: center;"></canvas>
                         <canvas id="gpu-canvas-2d-aux" style="display: none;justify-self: center;"></canvas>
                         <canvas id="gpu-canvas" style="display: none;justify-self: center;"></canvas>

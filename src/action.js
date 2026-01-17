@@ -1,4 +1,11 @@
 let isCvInit = false;
+// Variables para panning
+let panX = 0;
+let panY = 0;
+let isPanning = false;
+let startPan = { x: 0, y: 0 };
+let lastPan = { x: 0, y: 0 };
+
 let imageSrc;
 let imageOriginal;
 let imageProcessed;
@@ -26,7 +33,8 @@ const TypeCv = {
   MEDIAN: 6,
   ISODATA: 7,
   KMEANS: 8,
-  EQUALIZATION: 9
+  EQUALIZATION: 9,
+  ROTATE: 10,
 };
 
 let vertexShader = `
@@ -412,10 +420,11 @@ function temporalShader() {
         let texSize = vec2<f32>(textureDimensions(myTexture, 0));
         let uvResult = floor(uvZoom * texSize) / texSize;`;
     } else {
-        zoomShader = `
-        let uvResult = clamp(uvZoom, vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0));
-        `;
+        zoomShader = `let uvResult = clamp(uvZoom, vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0));`;
     }
+
+    if (zoomLevel === 1)
+        zoomShader = `let uvResult = input.uv;`;
 
     return vertexShader +
     `
@@ -1149,17 +1158,15 @@ function embossShader(kw, kh) {
 // --- Calculates Functions --- //
 function profileCurveLine(top) {
     let image = imageTemporal;
-    const canvas = document.createElement('canvas');
 
-    canvas.width = image.naturalWidth;
-    canvas.height = image.naturalHeight;
-
+    const canvas = document.getElementById('gpu-canvas-2d-panned');
     const ctx = canvas.getContext('2d');
-
-    ctx.drawImage(image, 0, 0);
 
     const width = canvas.width;
     const height = canvas.height;
+
+    if (isNaN(top))
+        top = 0;
 
     if (top < 0)
         top = 0;
@@ -1263,12 +1270,15 @@ function goToHistogram() {
 }
 
 function histogramCalculate(image, type) {
-    const canvas = document.createElement('canvas');
-    canvas.width = image.naturalWidth;
-    canvas.height = image.naturalHeight;
+    // const canvas = document.createElement('canvas');
+    // canvas.width = image.naturalWidth;
+    // canvas.height = image.naturalHeight;
 
+    // const ctx = canvas.getContext('2d');
+    // ctx.drawImage(image, 0, 0);
+
+    const canvas = document.getElementById('gpu-canvas-2d-panned');
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(image, 0, 0);
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
@@ -1892,30 +1902,22 @@ function render(device, context, pipeline, bindGroup, canvas, override) {
 
     imageTemporal.src = imageSrc;
 
-    let line = document.getElementById('horizontal-line');
+    imageTemporal.onload = function() { renderFunctions(override);}
 
-    imageTemporal.onload = function() {
-        if (override)
-            temporalShaders();
-        else {
-            profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
-            goToTonalCurve();
-            goToHistogram();
-        }
-    }
+    if (imageTemporal.complete)
+        renderFunctions(override);
+}
 
-    if (imageTemporal.complete) {
-        if (override)
-            temporalShaders();
-        else {
-            profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
-            goToTonalCurve();
-            goToHistogram();
-        }
-    }
+function renderFunctions(override) {
+    if (override)
+        temporalShaders();
+    else drawPannedImage();
 }
 
 function resetValues() {
+    panX = 0;
+    panY = 0;
+
     brightnessLevel = 0;
     contrastLevel = 1;
     zoomLevel = 1;
@@ -1953,6 +1955,35 @@ function applyZoom() {
     if (typeZoom === 'prox')
         initWebGPU(zoomProxShader(zoomLevel));//false
     else initWebGPU(zoomBilinealShader(zoomLevel));//false
+}
+
+function drawPannedImage() {
+    let maxImg = imageTemporal.naturalWidth;
+
+    if (maxImg < imageTemporal.naturalHeight)
+        maxImg = imageTemporal.naturalHeight;
+
+    const canvas = document.getElementById('gpu-canvas-2d-panned');
+
+    canvas.width = imageTemporal.naturalWidth;
+    canvas.height = imageTemporal.naturalHeight;
+
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (imageTemporal && imageTemporal.complete)
+        ctx.drawImage(imageTemporal, panX, panY);
+
+    let line = document.getElementById('horizontal-line');
+
+    profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
+    goToTonalCurve();
+    goToHistogram();
 }
 // --- End Utility Functions --- //
 
@@ -2067,10 +2098,12 @@ async function initWebGPU(shaderCode, override = false) {
 }
 
 async function loadDefaultImage(imageFile) {
+    resetValues();
+
     const file = imageFile;
 
     if (file) {
-        document.getElementById('gpu-canvas-2d').style.display = 'block';
+        document.getElementById('gpu-canvas-2d-panned').style.display = 'block';
         document.getElementById('container-profile-curve').style.display = 'block';
 
         imageProcessed = new Image();
@@ -2121,10 +2154,13 @@ async function main() {
 
     if (imageInput) {
         imageInput.addEventListener('change', async (e) => { loadDefaultImage(e.target.files[0]); });
-        document.getElementById('btn-reset-image').addEventListener('click', (event) => { 
-            resetValues();
-            loadDefaultImage(imageInput.files[0]); 
+        document.getElementById('btn-reset-image').addEventListener('click', (event) => { loadDefaultImage(imageInput.files[0]); });
+        document.getElementById('btn-pan-image').addEventListener('click', (event) => { 
+            panX = 0;
+            panY = 0;
+            drawPannedImage(); 
         });
+
         document.getElementById('toggle-horizontal-line').addEventListener('change', (event) => { 
             if (event.target.checked) {
                 document.getElementById('horizontal-line').style.display = 'block';
@@ -2150,6 +2186,7 @@ async function main() {
             initWebGPU(umbralMultipleShader(values), true); 
         });
         document.getElementById('rotate-btn').addEventListener('click', (event) => {
+            /*
             let input = document.getElementById('rotate-input');
             let value = parseInt(input.value);
 
@@ -2157,13 +2194,13 @@ async function main() {
 
             if (mod >= 45)
                 value += (90 - mod);
-            else
-                value -= mod;
+            else value -= mod;
 
             input.value = value;
 
             if (value !== 0)
-                initWebGPU(rotateShader(value), true); 
+            */
+                initOpenCV(TypeCv.ROTATE, true);//rotateShader(value), true);
         });
         document.getElementById('rotate-left-btn').addEventListener('click', (event) => { initWebGPU(rotateShader(-90), true); });
         document.getElementById('rotate-right-btn').addEventListener('click', (event) => { initWebGPU(rotateShader(90), true); });
@@ -2315,6 +2352,8 @@ async function initOpenCV(type, override = false) {
             case TypeCv.ISODATA: umbralIsodataCv(cv, auxCanvas); break;
             case TypeCv.KMEANS: umbralKMeansCv(cv, auxCanvas); break;
             case TypeCv.EQUALIZATION: equalizationCv(cv, auxCanvas); break;
+            case TypeCv.ROTATE: rotateCv(cv, auxCanvas); break;
+            default: break;
         }
 
         const gpuCtx = gpuCanvas2d.getContext('2d');
@@ -2327,27 +2366,10 @@ async function initOpenCV(type, override = false) {
 
         imageTemporal.src = imageSrc;
 
-        let line = document.getElementById('horizontal-line');
+        imageTemporal.onload = function() { renderFunctions(override); }
 
-        imageTemporal.onload = function() {
-            if (override)
-                temporalShaders();
-            else {
-                profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
-                goToTonalCurve();
-                goToHistogram();
-            }
-        }
-
-        if (imageTemporal.complete) {
-            if (override)
-                temporalShaders();
-            else {
-                profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
-                goToTonalCurve();
-                goToHistogram();
-            }
-        }
+        if (imageTemporal.complete)
+            renderFunctions(override);
     }
 }
 
@@ -2483,7 +2505,7 @@ async function customMorfology(type) {
 
     initOpenCV(type, true);
 }
-
+// End Morfology
 // Umbral
 function umbralOtsuCv(cv, canvas) {
     let src = cv.imread(canvas);
@@ -2623,6 +2645,7 @@ function umbralKMeansCv(cv, canvas) {
     cv.imshow(canvas, src);
     src.delete();
 }
+// End Umbral
 
 function equalizationCv(cv, canvas) {
     let src = cv.imread(canvas);
@@ -2657,5 +2680,59 @@ function equalizationCv(cv, canvas) {
     src.delete();
     ycrcb.delete();
     channels.delete();
+}
+
+function rotateCv(cv, canvas) {
+    let input = document.getElementById('rotate-input');
+    let value = parseInt(input.value);
+
+    if (value === 0)
+        return;
+
+    value = -value
+
+    let src = cv.imread(canvas);
+    let center = new cv.Point(src.cols / 2, src.rows / 2);
+    let rotateMat = cv.getRotationMatrix2D(center, value, 1.0);
+    let size = new cv.Size(src.cols, src.rows);
+
+    cv.warpAffine(src, src, rotateMat, size, cv.INTER_CUBIC, cv.BORDER_REPLICATE, new cv.Scalar());
+    cv.imshow(canvas, src);
+
+    src.delete();
+    rotateMat.delete();
+}
+
+// Rotación en ángulo arbitrario sin recortar bordes
+function rotarImagenSinRecorte(cv, canvas) {
+    let input = document.getElementById('rotate-input');
+    let angulo = parseInt(input.value);
+
+    if (angulo === 0)
+        return;
+
+    angulo = -angulo
+
+    let src = cv.imread(canvas);
+    let rad = angulo * Math.PI / 180.0;
+    let sin = Math.abs(Math.sin(rad));
+    let cos = Math.abs(Math.cos(rad));
+    let newWidth = Math.floor(src.rows * sin + src.cols * cos);
+    let newHeight = Math.floor(src.rows * cos + src.cols * sin);
+    let center = new cv.Point(src.cols / 2, src.rows / 2);
+    let rotMat = cv.getRotationMatrix2D(center, angulo, 1.0);
+    // Ajustar la traslación para centrar la imagen rotada
+    rotMat.doublePtr(0,2)[0] += (newWidth - src.cols) / 2;
+    rotMat.doublePtr(1,2)[0] += (newHeight - src.rows) / 2;
+
+    let dsize = new cv.Size(newWidth, newHeight);
+    let dst = new cv.Mat();
+
+    cv.warpAffine(src, dst, rotMat, dsize, cv.INTER_CUBIC, cv.BORDER_CONSTANT, new cv.Scalar(0,0,0,0));
+    cv.imshow(canvas, dst);
+
+    src.delete();
+    dst.delete();
+    rotMat.delete();
 }
 // --- End OpenCv --- //

@@ -225,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Línea horizontal desplazable en el canvas
 function imageLoadedCallback() {
-    var gpuCanvas = document.getElementById('gpu-canvas-2d');
+    var gpuCanvas = document.getElementById('gpu-canvas-2d-panned');
     var hLine = document.getElementById('horizontal-line');
 
     if (gpuCanvas && hLine) {
@@ -314,3 +314,28 @@ function collapseGroup(title, content) {
         }
     }, 350);
 }
+
+// --- Panning sobre el canvas 2D --- //
+window.addEventListener('DOMContentLoaded', () => {
+    const canvas = document.getElementById('gpu-canvas-2d-panned');
+    if (!canvas) return;
+
+    canvas.addEventListener('mousedown', (e) => {
+        isPanning = true;
+        startPan = { x: e.clientX, y: e.clientY };
+        lastPan = { x: panX, y: panY };
+        canvas.style.cursor = 'grabbing';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isPanning) return;
+        panX = lastPan.x + (e.clientX - startPan.x);
+        panY = lastPan.y + (e.clientY - startPan.y);
+        drawPannedImage();
+    });
+
+    window.addEventListener('mouseup', () => {
+        isPanning = false;
+        canvas.style.cursor = 'default';
+    });
+});
