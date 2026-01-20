@@ -355,7 +355,7 @@ body {
     width: 95% !important;
 }
 .main-action-buttons {
-    display: flex !important;
+    /* display: flex !important; */
     flex-direction: row !important;
     gap: 8px !important;
     justify-content: center !important;
@@ -366,7 +366,7 @@ body {
     border: none !important;
     cursor: pointer !important;
     font-size: 1.5em !important;
-    width: auto !important;
+    width: 40px !important;
 }
 #horizontal-line {
     position: absolute;

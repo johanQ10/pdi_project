@@ -16,19 +16,29 @@
             <nav>
                 <!-- Botones de acción principales -->
                 <div class="main-action-buttons">
-                    <label for="btn-load-image" title="Cargar imagen">
-                        <span aria-label="Cargar imagen" role="img">📂</span>
-                        <input type="file" id="btn-load-image" accept="image/*,.pbm,.pgm,.ppm,.rle" style="display:none;">
-                    </label>
-                    <button id="btn-save-image" title="Guardar imagen">
-                        <span aria-label="Guardar imagen" role="img">💾</span>
-                    </button>
-                    <button id="btn-reset-image" title="Resetear imagen">
-                        <span aria-label="Resetear imagen" role="img">🔄</span>
-                    </button>
-                    <button id="btn-pan-image" title="Reubicar imagen">
-                        <span aria-label="Reubicar imagen" role="img">🧭</span>
-                    </button>
+                    <div style="display: inline-flex;justify-content: center;">
+                        <label for="btn-load-image" title="Cargar imagen" style="text-align: center;">
+                            <span aria-label="Cargar imagen" role="img">📂</span>
+                            <input type="file" id="btn-load-image" accept="image/*,.pbm,.pgm,.ppm,.rle" style="display:none;">
+                        </label>
+                        <button id="btn-save-image" title="Guardar imagen">
+                            <span aria-label="Guardar imagen" role="img">💾</span>
+                        </button>
+                        <button id="btn-reset-image" title="Resetear imagen">
+                            <span aria-label="Resetear imagen" role="img">🔄</span>
+                        </button>
+                    </div>
+                    <div style="display: inline-flex;justify-content: center;">
+                        <button id="btn-pan-image" title="Reubicar imagen">
+                            <span aria-label="Reubicar imagen" role="img">🧭</span>
+                        </button>
+                        <button id="btn-undo-action" title="Deshacer acción">
+                            <span aria-label="Deshacer acción" role="img">↩️</span>
+                        </button>
+                        <button id="btn-redo-action" title="Rehacer acción">
+                            <span aria-label="Rehacer acción" role="img">↪️</span>
+                        </button>
+                    </div>
                 </div>
                 <!-- Modal para guardar imagen (diseño igual a custom-kernel-modal) -->
                 <div id="save-image-modal" class="modal" style="display:none;">

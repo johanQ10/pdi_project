@@ -1,5 +1,8 @@
+
+let undoStack = [];
+let redoStack = [];
+
 let isCvInit = false;
-// Variables para panning
 let panX = 0;
 let panY = 0;
 let isPanning = false;
@@ -1914,13 +1917,19 @@ function render(device, context, pipeline, bindGroup, canvas, override) {
         renderFunctions(override);
 }
 
-function renderFunctions(override) {
+function renderFunctions(override, isUndoRedo = false) {
+    if (override && !isUndoRedo)
+        saveState();
+
     if (override)
         temporalShaders();
     else drawPannedImage();
 }
 
 function resetValues() {
+    undoStack = [];
+    redoStack = [];
+
     panX = 0;
     panY = 0;
 
@@ -2153,6 +2162,52 @@ async function loadDefaultImage(imageFile) {
     }
 }
 
+function undo() {
+    let canvas2d = document.getElementById('gpu-canvas-2d');
+    const ctx = canvas2d.getContext('2d');
+
+    let currentImageData = ctx.getImageData(0, 0, canvas2d.width, canvas2d.height);
+
+    if (undoStack.length > 0) {
+        redoStack.push(currentImageData);
+
+        let imageData = undoStack.pop();
+
+        if (imageData) {
+            imageProcessed.src = netpbmToImageData(imageData);
+            renderFunctions(true, true);
+        }
+    }
+}
+
+function redo() {
+    let canvas2d = document.getElementById('gpu-canvas-2d');
+    const ctx = canvas2d.getContext('2d');
+
+    let currentImageData = ctx.getImageData(0, 0, canvas2d.width, canvas2d.height);
+
+    if (redoStack.length > 0) {
+        undoStack.push(currentImageData);
+
+        let imageData = redoStack.pop();
+
+        if (imageData) {
+            imageProcessed.src = netpbmToImageData(imageData);
+            renderFunctions(true, true);
+        }
+    }
+}
+
+function saveState() {
+    let canvas2d = document.getElementById('gpu-canvas-2d');
+    const ctx = canvas2d.getContext('2d');
+
+    let currentImageData = ctx.getImageData(0, 0, canvas2d.width, canvas2d.height);
+
+    undoStack.push(currentImageData);
+    redoStack = [];
+}
+
 async function main() {
     updateSidebar();
 
@@ -2166,6 +2221,9 @@ async function main() {
             panY = 0;
             drawPannedImage(); 
         });
+
+        document.getElementById('btn-undo-action').addEventListener('click', (event) => { undo(); });
+        document.getElementById('btn-redo-action').addEventListener('click', (event) => { redo(); });
 
         document.getElementById('toggle-horizontal-line').addEventListener('change', (event) => { 
             if (event.target.checked) {
@@ -2697,60 +2755,6 @@ function equalizationCv(cv, canvas) {
     channels.delete();
 }
 
-function rotateCv(cv, canvas) {
-    let input = document.getElementById('rotate-input');
-    let value = parseInt(input.value);
-
-    if (value === 0)
-        return;
-
-    value = -value
-
-    let src = cv.imread(canvas);
-    let center = new cv.Point(src.cols / 2, src.rows / 2);
-    let rotateMat = cv.getRotationMatrix2D(center, value, 1.0);
-    let size = new cv.Size(src.cols, src.rows);
-
-    cv.warpAffine(src, src, rotateMat, size, cv.INTER_CUBIC, cv.BORDER_REPLICATE, new cv.Scalar());
-    cv.imshow(canvas, src);
-
-    src.delete();
-    rotateMat.delete();
-}
-
-// Rotación en ángulo arbitrario sin recortar bordes
-function rotarImagenSinRecorte(cv, canvas) {
-    let input = document.getElementById('rotate-input');
-    let angulo = parseInt(input.value);
-
-    if (angulo === 0)
-        return;
-
-    angulo = -angulo
-
-    let src = cv.imread(canvas);
-    let rad = angulo * Math.PI / 180.0;
-    let sin = Math.abs(Math.sin(rad));
-    let cos = Math.abs(Math.cos(rad));
-    let newWidth = Math.floor(src.rows * sin + src.cols * cos);
-    let newHeight = Math.floor(src.rows * cos + src.cols * sin);
-    let center = new cv.Point(src.cols / 2, src.rows / 2);
-    let rotMat = cv.getRotationMatrix2D(center, angulo, 1.0);
-    // Ajustar la traslación para centrar la imagen rotada
-    rotMat.doublePtr(0,2)[0] += (newWidth - src.cols) / 2;
-    rotMat.doublePtr(1,2)[0] += (newHeight - src.rows) / 2;
-
-    let dsize = new cv.Size(newWidth, newHeight);
-    let dst = new cv.Mat();
-
-    cv.warpAffine(src, dst, rotMat, dsize, cv.INTER_CUBIC, cv.BORDER_CONSTANT, new cv.Scalar());
-    cv.imshow(canvas, dst);
-
-    src.delete();
-    dst.delete();
-    rotMat.delete();
-}
-
 // Color Quantization
 function bitReductionCv(cv, canvas) {
     let bitsInput = document.getElementById('cuantizacion-bits-input').value;
@@ -2889,5 +2893,59 @@ function kMeansColorCv(cv, canvas, maxIter = 10) {
     newImg.delete();
 }
 // End Color Quantization
+
+function rotateCv(cv, canvas) {
+    let input = document.getElementById('rotate-input');
+    let value = parseInt(input.value);
+
+    if (value === 0)
+        return;
+
+    value = -value
+
+    let src = cv.imread(canvas);
+    let center = new cv.Point(src.cols / 2, src.rows / 2);
+    let rotateMat = cv.getRotationMatrix2D(center, value, 1.0);
+    let size = new cv.Size(src.cols, src.rows);
+
+    cv.warpAffine(src, src, rotateMat, size, cv.INTER_CUBIC, cv.BORDER_REPLICATE, new cv.Scalar());
+    cv.imshow(canvas, src);
+
+    src.delete();
+    rotateMat.delete();
+}
+
+// Rotación en ángulo arbitrario sin recortar bordes
+function rotarImagenSinRecorte(cv, canvas) {
+    let input = document.getElementById('rotate-input');
+    let angulo = parseInt(input.value);
+
+    if (angulo === 0)
+        return;
+
+    angulo = -angulo
+
+    let src = cv.imread(canvas);
+    let rad = angulo * Math.PI / 180.0;
+    let sin = Math.abs(Math.sin(rad));
+    let cos = Math.abs(Math.cos(rad));
+    let newWidth = Math.floor(src.rows * sin + src.cols * cos);
+    let newHeight = Math.floor(src.rows * cos + src.cols * sin);
+    let center = new cv.Point(src.cols / 2, src.rows / 2);
+    let rotMat = cv.getRotationMatrix2D(center, angulo, 1.0);
+    // Ajustar la traslación para centrar la imagen rotada
+    rotMat.doublePtr(0,2)[0] += (newWidth - src.cols) / 2;
+    rotMat.doublePtr(1,2)[0] += (newHeight - src.rows) / 2;
+
+    let dsize = new cv.Size(newWidth, newHeight);
+    let dst = new cv.Mat();
+
+    cv.warpAffine(src, dst, rotMat, dsize, cv.INTER_CUBIC, cv.BORDER_CONSTANT, new cv.Scalar());
+    cv.imshow(canvas, dst);
+
+    src.delete();
+    dst.delete();
+    rotMat.delete();
+}
 
 // --- End OpenCv --- //
