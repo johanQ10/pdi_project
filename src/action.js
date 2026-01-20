@@ -35,6 +35,9 @@ const TypeCv = {
   KMEANS: 8,
   EQUALIZATION: 9,
   ROTATE: 10,
+  BITREDUCTION: 11,
+  POPULARITY: 12,
+  KMEANSCOLOR: 13,
 };
 
 let vertexShader = `
@@ -1102,6 +1105,9 @@ function embossShader(kw, kh) {
 
     matrix[0][0] = -1;
     matrix[kh - 1][kw - 1] = 1;
+
+    matrix[0][kw - 1] = 1;
+    matrix[kh - 1][0] = -1;
 
     let kernel = '';
 
@@ -2310,6 +2316,10 @@ async function main() {
         document.getElementById('menu-umbral-isodata').addEventListener('click', (event) => { initOpenCV(TypeCv.ISODATA, true); });
         document.getElementById('menu-umbral-kmeans').addEventListener('click', (event) => { initOpenCV(TypeCv.KMEANS, true); });
         document.getElementById('menu-equalization').addEventListener('click', (event) => { initOpenCV(TypeCv.EQUALIZATION, true); });
+
+        document.getElementById('cuantizacion-bits-btn').addEventListener('click', (event) => { initOpenCV(TypeCv.BITREDUCTION, true); });
+        document.getElementById('cuantizacion-popularity-btn').addEventListener('click', (event) => { initOpenCV(TypeCv.POPULARITY, true); });
+        document.getElementById('cuantizacion-kmeans-btn').addEventListener('click', (event) => { initOpenCV(TypeCv.KMEANSCOLOR, true); });
     }
 }
 // --- End Init --- //
@@ -2353,6 +2363,9 @@ async function initOpenCV(type, override = false) {
             case TypeCv.KMEANS: umbralKMeansCv(cv, auxCanvas); break;
             case TypeCv.EQUALIZATION: equalizationCv(cv, auxCanvas); break;
             case TypeCv.ROTATE: rotateCv(cv, auxCanvas); break;
+            case TypeCv.BITREDUCTION: bitReductionCv(cv, auxCanvas); break;
+            case TypeCv.POPULARITY: popularityCv(cv, auxCanvas); break;
+            case TypeCv.KMEANSCOLOR: kMeansColorCv(cv, auxCanvas); break;
             default: break;
         }
 
@@ -2609,6 +2622,7 @@ function umbralKMeansCv(cv, canvas) {
 
     if (src.channels() > 1)
         cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+
     // K-means con k=2 (fondo y objeto)
     let values = [];
 
@@ -2643,6 +2657,7 @@ function umbralKMeansCv(cv, canvas) {
 
     cv.threshold(src, src, threshold, 255, cv.THRESH_BINARY);
     cv.imshow(canvas, src);
+
     src.delete();
 }
 // End Umbral
@@ -2657,7 +2672,6 @@ function equalizationCv(cv, canvas) {
         return;
     }
 
-    // Si tiene 4 canales, convertir a 3 canales (RGB)
     let rgb = new cv.Mat();
 
     if (src.channels() === 4)
@@ -2674,6 +2688,7 @@ function equalizationCv(cv, canvas) {
     cv.merge(channels, ycrcb);
     cv.cvtColor(ycrcb, rgb, cv.COLOR_YCrCb2RGB, 0);
     cv.cvtColor(rgb, src, cv.COLOR_RGB2RGBA, 0);
+
     cv.imshow(canvas, src);
 
     rgb.delete();
@@ -2728,11 +2743,151 @@ function rotarImagenSinRecorte(cv, canvas) {
     let dsize = new cv.Size(newWidth, newHeight);
     let dst = new cv.Mat();
 
-    cv.warpAffine(src, dst, rotMat, dsize, cv.INTER_CUBIC, cv.BORDER_CONSTANT, new cv.Scalar(0,0,0,0));
+    cv.warpAffine(src, dst, rotMat, dsize, cv.INTER_CUBIC, cv.BORDER_CONSTANT, new cv.Scalar());
     cv.imshow(canvas, dst);
 
     src.delete();
     dst.delete();
     rotMat.delete();
 }
+
+// Color Quantization
+function bitReductionCv(cv, canvas) {
+    let bitsInput = document.getElementById('cuantizacion-bits-input').value;
+
+    if (bitsInput === '')
+        bitsInput = '8';
+        
+    let bits = parseInt(bitsInput);
+
+    let src = cv.imread(canvas);
+    let shift = 8 - bits;
+
+    cv.cvtColor(src, src, cv.COLOR_RGBA2RGB, 0);
+
+    for (let i = 0; i < src.rows; i++) {
+        for (let j = 0; j < src.cols; j++) {
+            let pixel = src.ucharPtr(i, j);
+            pixel[0] = (pixel[0] >> shift) << shift;
+            pixel[1] = (pixel[1] >> shift) << shift;
+            pixel[2] = (pixel[2] >> shift) << shift;
+        }
+    }
+
+    cv.imshow(canvas, src);
+
+    src.delete();
+}
+
+function popularityCv(cv, canvas) {
+    let popularityInput = document.getElementById('cuantizacion-popularity-input').value;
+
+    if (popularityInput === '')
+        popularityInput = '256';
+        
+    let popularity = parseInt(popularityInput);
+
+    let src = cv.imread(canvas);
+
+    cv.cvtColor(src, src, cv.COLOR_RGBA2RGB, 0);
+
+    let colorMap = new Map();
+
+    for (let i = 0; i < src.rows; i++) {
+        for (let j = 0; j < src.cols; j++) {
+            let pixel = src.ucharPtr(i, j);
+            let key = `${pixel[0]},${pixel[1]},${pixel[2]}`;
+            colorMap.set(key, (colorMap.get(key) || 0) + 1);
+        }
+    }
+
+    let palette = Array.from(colorMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, popularity)
+        .map(e => e[0].split(',').map(Number));
+
+    for (let i = 0; i < src.rows; i++) {
+        for (let j = 0; j < src.cols; j++) {
+            let pixel = src.ucharPtr(i, j);
+            let minDist = Infinity, idx = 0;
+
+            for (let k = 0; k < palette.length; k++) {
+                let dr = pixel[0] - palette[k][0];
+                let dg = pixel[1] - palette[k][1];
+                let db = pixel[2] - palette[k][2];
+                let dist = dr * dr + dg * dg + db * db;
+
+                if (dist < minDist) {
+                    minDist = dist;
+                    idx = k;
+                }
+            }
+
+            pixel[0] = palette[idx][0];
+            pixel[1] = palette[idx][1];
+            pixel[2] = palette[idx][2];
+        }
+    }
+
+    cv.imshow(canvas, src);
+
+    src.delete();
+}
+
+function kMeansColorCv(cv, canvas, maxIter = 10) {
+    let kmeansInput = document.getElementById('cuantizacion-kmeans-input').value;
+
+    if (kmeansInput === '')
+        kmeansInput = '8';
+        
+    let k = parseInt(kmeansInput);
+
+    let src = cv.imread(canvas);
+    cv.cvtColor(src, src, cv.COLOR_RGBA2RGB, 0);
+
+    let rows = src.rows, cols = src.cols;
+
+    let arr = [];
+
+    for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < cols; j++) {
+            let pixel = src.ucharPtr(i, j);
+            arr.push(pixel[0], pixel[1], pixel[2]);
+        }
+    }
+
+    let matrix = cv.matFromArray(rows * cols, 3, cv.CV_32F, arr);
+    let labels = new cv.Mat();
+    let centers = new cv.Mat();
+
+    cv.kmeans(
+        matrix, k, labels,
+        new cv.TermCriteria(cv.TermCriteria_EPS + cv.TermCriteria_MAX_ITER, maxIter, 1.0),
+        1, cv.KMEANS_RANDOM_CENTERS, centers
+    );
+
+    // Crear la imagen resultante
+    let newImg = new cv.Mat(rows, cols, src.type());
+    let idx = 0;
+
+    for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < cols; j++, idx++) {
+            let centerIdx = labels.intAt(idx, 0);
+            let pixel = newImg.ucharPtr(i, j);
+            pixel[0] = centers.floatAt(centerIdx, 0);
+            pixel[1] = centers.floatAt(centerIdx, 1);
+            pixel[2] = centers.floatAt(centerIdx, 2);
+        }
+    }
+
+    cv.imshow(canvas, newImg);
+
+    src.delete();
+    matrix.delete();
+    labels.delete();
+    centers.delete();
+    newImg.delete();
+}
+// End Color Quantization
+
 // --- End OpenCv --- //
