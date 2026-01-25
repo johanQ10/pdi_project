@@ -25,6 +25,7 @@ let kernelCustomMorfology = [];
 let xCustomMorfology = 0;
 let yCustomMorfology = 0;
 let isCustomMorfology = false;
+let isUndoRedo = false;
 
 const TypeCv = {
   EROSION: 0,
@@ -1917,10 +1918,7 @@ function render(device, context, pipeline, bindGroup, canvas, override) {
         renderFunctions(override);
 }
 
-function renderFunctions(override, isUndoRedo = false) {
-    if (override && !isUndoRedo)
-        saveState();
-
+function renderFunctions(override) {
     if (override)
         temporalShaders();
     else drawPannedImage();
@@ -1973,6 +1971,8 @@ function applyZoom() {
 }
 
 function drawPannedImage() {
+    isUndoRedo = false;
+
     let maxImg = imageTemporal.naturalWidth;
 
     if (maxImg < imageTemporal.naturalHeight)
@@ -2004,6 +2004,9 @@ function drawPannedImage() {
 
 // Main function
 async function initWebGPU(shaderCode, override = false) {
+    if (override && !isUndoRedo)
+        saveState();
+
     let image;
 
     // if (override)
@@ -2168,14 +2171,15 @@ function undo() {
 
     let currentImageData = ctx.getImageData(0, 0, canvas2d.width, canvas2d.height);
 
-    if (undoStack.length > 0) {
+    if (undoStack.length > 1) {
         redoStack.push(currentImageData);
 
         let imageData = undoStack.pop();
 
         if (imageData) {
             imageProcessed.src = netpbmToImageData(imageData);
-            renderFunctions(true, true);
+            isUndoRedo = true;
+            renderFunctions(true);
         }
     }
 }
@@ -2193,7 +2197,8 @@ function redo() {
 
         if (imageData) {
             imageProcessed.src = netpbmToImageData(imageData);
-            renderFunctions(true, true);
+            isUndoRedo = true;
+            renderFunctions(true);
         }
     }
 }
@@ -2219,7 +2224,7 @@ async function main() {
         document.getElementById('btn-pan-image').addEventListener('click', (event) => { 
             panX = 0;
             panY = 0;
-            drawPannedImage(); 
+            drawPannedImage(true);
         });
 
         document.getElementById('btn-undo-action').addEventListener('click', (event) => { undo(); });
@@ -2387,6 +2392,22 @@ document.addEventListener('DOMContentLoaded', () => {
     main();
 });
 
+window.addEventListener('keydown', function(event) {
+    // event.ctrlKey para Windows/Linux, event.metaKey para Mac (Cmd)
+    if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
+        event.preventDefault();
+
+        if (typeof undo === 'function')
+            undo();
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key === 'y') {
+        event.preventDefault();
+
+        if (typeof redo === 'function')
+            redo();
+    }
+});
+
 cv['onRuntimeInitialized'] = function() {
     isCvInit = true;
 };
@@ -2400,12 +2421,16 @@ function isCvLoaded() {
 
 async function initOpenCV(type, override = false) {
     if (isCvLoaded()) {
+        if (override && !isUndoRedo)
+            saveState();
+
         const gpuCanvas2d = document.getElementById('gpu-canvas-2d');
 
         // Canvas auxiliar 2D
         const auxCanvas = document.createElement('canvas');
         auxCanvas.width = gpuCanvas2d.width;
         auxCanvas.height = gpuCanvas2d.height;
+
         const auxCtx = auxCanvas.getContext('2d');
         auxCtx.drawImage(gpuCanvas2d, 0, 0);
 
