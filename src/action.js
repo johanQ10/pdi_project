@@ -2,6 +2,16 @@
 let undoStack = [];
 let redoStack = [];
 
+let brightnessUndoStack = [];
+let contrastUndoStack = [];
+let gammaUndoStack = [];
+let zoomUndoStack = [];
+
+let brightnessRedoStack = [];
+let contrastRedoStack = [];
+let gammaRedoStack = [];
+let zoomRedoStack = [];
+
 let isCvInit = false;
 let panX = 0;
 let panY = 0;
@@ -13,11 +23,19 @@ let imageSrc;
 let imageOriginal;
 let imageProcessed;
 let imageTemporal;
+
 let bitsPerPixel = 0;
+
 let brightnessLevel = 0;
 let contrastLevel = 1;
 let gammaLevel = 1;
 let zoomLevel = 1;
+
+let auxBrightnessLevel = 0;
+let auxContrastLevel = 1;
+let auxGammaLevel = 1;
+let auxZoomLevel = 1;
+
 let typeZoom = 'prox';
 let colorValue = "#ff0000";
 let rotate = false;
@@ -1867,6 +1885,7 @@ function temporalShaders() {
     if (value === '')
         value = '1.0';
 
+    auxZoomLevel = zoomLevel;
     zoomLevel = parseFloat(value);
     typeZoom = document.querySelector('input[name="zoom-type"]:checked').value;
 
@@ -1906,7 +1925,7 @@ function render(device, context, pipeline, bindGroup, canvas, override) {
     context2d.drawImage(canvas, 0, 0);
 
     imageSrc = canvas2d.toDataURL('image/png');
-
+    console.log('5');
     if (override)
         imageProcessed.src = imageSrc;
 
@@ -1927,6 +1946,16 @@ function renderFunctions(override) {
 function resetValues() {
     undoStack = [];
     redoStack = [];
+
+    brightnessUndoStack = [];
+    contrastUndoStack = [];
+    gammaUndoStack = [];
+    zoomUndoStack = [];
+
+    brightnessRedoStack = [];
+    contrastRedoStack = [];
+    gammaRedoStack = [];
+    zoomRedoStack = [];
 
     panX = 0;
     panY = 0;
@@ -2004,8 +2033,8 @@ function drawPannedImage() {
 
 // Main function
 async function initWebGPU(shaderCode, override = false) {
-    if (override && !isUndoRedo)
-        saveState();
+    console.log('go save state');
+    saveState(override);
 
     let image;
 
@@ -2142,9 +2171,12 @@ async function loadDefaultImage(imageFile) {
             console.log(imageSrc);
         }
 
+        console.log('1');
         imageProcessed.src = imageSrc;
         imageOriginal.src = imageSrc;
         imageTemporal.src = imageSrc;
+
+        console.log('loadDefaultImage: ' + imageProcessed.src);
 
         imageOriginal.onload = function() {
             let maxImg = imageOriginal.naturalWidth;
@@ -2166,18 +2198,29 @@ async function loadDefaultImage(imageFile) {
 }
 
 function undo() {
-    let canvas2d = document.getElementById('gpu-canvas-2d');
-    const ctx = canvas2d.getContext('2d');
-
-    let currentImageData = ctx.getImageData(0, 0, canvas2d.width, canvas2d.height);
-
     if (undoStack.length > 1) {
-        redoStack.push(currentImageData);
+        redoStack.push(imageProcessed.src);
 
-        let imageData = undoStack.pop();
+        brightnessRedoStack.push(brightnessLevel);
+        contrastRedoStack.push(contrastLevel);
+        gammaRedoStack.push(gammaLevel);
+        zoomRedoStack.push(zoomLevel);
 
-        if (imageData) {
-            imageProcessed.src = netpbmToImageData(imageData);
+        let previousSrc = undoStack.pop();
+
+        brightnessLevel = brightnessUndoStack.pop();
+        contrastLevel = contrastUndoStack.pop();
+        gammaLevel = gammaUndoStack.pop();
+        zoomLevel = zoomUndoStack.pop();
+
+        document.getElementById('brightness-input').value = brightnessLevel;
+        document.getElementById('contrast-input').value = contrastLevel;
+        document.getElementById('gamma-input').value = gammaLevel;
+        document.getElementById('zoom-input').value = zoomLevel;
+
+        if (previousSrc) {
+            // imageProcessed = netpbmToImageData(imageData);
+            imageProcessed.src = previousSrc;
             isUndoRedo = true;
             renderFunctions(true);
         }
@@ -2185,32 +2228,57 @@ function undo() {
 }
 
 function redo() {
-    let canvas2d = document.getElementById('gpu-canvas-2d');
-    const ctx = canvas2d.getContext('2d');
-
-    let currentImageData = ctx.getImageData(0, 0, canvas2d.width, canvas2d.height);
-
     if (redoStack.length > 0) {
-        undoStack.push(currentImageData);
+        undoStack.push(imageProcessed.src);
 
-        let imageData = redoStack.pop();
+        brightnessUndoStack.push(brightnessLevel);
+        contrastUndoStack.push(contrastLevel);
+        gammaUndoStack.push(gammaLevel);
+        zoomUndoStack.push(zoomLevel);
 
-        if (imageData) {
-            imageProcessed.src = netpbmToImageData(imageData);
+        let nextSrc = redoStack.pop();
+
+        brightnessLevel = brightnessRedoStack.pop();
+        contrastLevel = contrastRedoStack.pop();
+        gammaLevel = gammaRedoStack.pop();
+        zoomLevel = zoomRedoStack.pop();
+
+        document.getElementById('brightness-input').value = brightnessLevel;
+        document.getElementById('contrast-input').value = contrastLevel;
+        document.getElementById('gamma-input').value = gammaLevel;
+        document.getElementById('zoom-input').value = zoomLevel;
+
+        if (nextSrc) {
+            console.log('3');
+            // imageProcessed.src = netpbmToImageData(imageData);
+            imageProcessed.src = nextSrc;
             isUndoRedo = true;
             renderFunctions(true);
         }
     }
 }
 
-function saveState() {
-    let canvas2d = document.getElementById('gpu-canvas-2d');
-    const ctx = canvas2d.getContext('2d');
+function saveState(override) {
+    if (isUndoRedo)
+        return;
 
-    let currentImageData = ctx.getImageData(0, 0, canvas2d.width, canvas2d.height);
+    if (override)
+        undoStack.push(imageProcessed.src);
+    else {
+        brightnessUndoStack.push(auxBrightnessLevel);
+        contrastUndoStack.push(auxContrastLevel);
+        gammaUndoStack.push(auxGammaLevel);
+        zoomUndoStack.push(auxZoomLevel);
 
-    undoStack.push(currentImageData);
-    redoStack = [];
+        if (brightnessUndoStack.length > undoStack.length)
+            undoStack.push(imageProcessed.src);
+
+        redoStack = [];
+        brightnessRedoStack = [];
+        contrastRedoStack = [];
+        gammaRedoStack = [];
+        zoomRedoStack = [];
+    }
 }
 
 async function main() {
@@ -2277,12 +2345,26 @@ async function main() {
         document.getElementById('color-picker').addEventListener('input', (event) => { colorValue = event.target.value; });
 
         document.getElementById('brightness-input').addEventListener('input', (event) => {
-            brightnessLevel = parseFloat(event.target.value);
+            auxBrightnessLevel = brightnessLevel;
+
+            let value = event.target.value;
+
+            if (value === '')
+                value = '0';
+
+            brightnessLevel = parseFloat(value);
             // initWebGPU(brightnessShader(brightnessLevel));//false
             temporalShaders();
         });
         document.getElementById('contrast-input').addEventListener('input', (event) => {
-            contrastLevel = parseFloat(event.target.value);
+            auxContrastLevel = contrastLevel;
+
+            let value = event.target.value;
+
+            if (value === '')
+                value = '1.0';
+
+            contrastLevel = parseFloat(value);
             // initWebGPU(contrastShader(contrastLevel));//false
             temporalShaders();
         });
@@ -2290,7 +2372,14 @@ async function main() {
         document.getElementById('zoom-prox').addEventListener('change', (event) => { temporalShaders(); });
         document.getElementById('zoom-bilineal').addEventListener('change', (event) => { temporalShaders(); });
         document.getElementById('gamma-input').addEventListener('input', (event) => {
-            gammaLevel = parseFloat(event.target.value);
+            auxGammaLevel = gammaLevel;
+
+            let value = event.target.value;
+
+            if (value === '')
+                value = '1.0';
+
+            gammaLevel = parseFloat(value);
             // initWebGPU(gammaShader(gammaLevel));//false
             temporalShaders();
         });
@@ -2421,8 +2510,7 @@ function isCvLoaded() {
 
 async function initOpenCV(type, override = false) {
     if (isCvLoaded()) {
-        if (override && !isUndoRedo)
-            saveState();
+        saveState(override);
 
         const gpuCanvas2d = document.getElementById('gpu-canvas-2d');
 
@@ -2456,7 +2544,7 @@ async function initOpenCV(type, override = false) {
         gpuCtx.drawImage(auxCanvas, 0, 0);
 
         imageSrc = gpuCanvas2d.toDataURL('image/png');
-
+        console.log('4');
         if (override)
             imageProcessed.src = imageSrc;
 
