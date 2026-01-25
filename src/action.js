@@ -1,16 +1,16 @@
+class statusObject {
+    constructor(imageSrc, brightness, contrast, gamma, zoom) {
+        this.imageSrc = imageSrc;
+        this.brightness = brightness;
+        this.contrast = contrast;
+        this.gamma = gamma;
+        this.zoom = zoom;
+    }
+}
+
 
 let undoStack = [];
 let redoStack = [];
-
-let brightnessUndoStack = [];
-let contrastUndoStack = [];
-let gammaUndoStack = [];
-let zoomUndoStack = [];
-
-let brightnessRedoStack = [];
-let contrastRedoStack = [];
-let gammaRedoStack = [];
-let zoomRedoStack = [];
 
 let isCvInit = false;
 let panX = 0;
@@ -43,7 +43,9 @@ let kernelCustomMorfology = [];
 let xCustomMorfology = 0;
 let yCustomMorfology = 0;
 let isCustomMorfology = false;
+
 let isUndoRedo = false;
+let isTemporal = false;
 
 const TypeCv = {
   EROSION: 0,
@@ -1947,26 +1949,26 @@ function resetValues() {
     undoStack = [];
     redoStack = [];
 
-    brightnessUndoStack = [];
-    contrastUndoStack = [];
-    gammaUndoStack = [];
-    zoomUndoStack = [];
-
-    brightnessRedoStack = [];
-    contrastRedoStack = [];
-    gammaRedoStack = [];
-    zoomRedoStack = [];
-
     panX = 0;
     panY = 0;
 
     brightnessLevel = 0;
     contrastLevel = 1;
+    gammaLevel = 1;
     zoomLevel = 1;
+
+    resetAuxValues();
 
     document.getElementById('brightness-input').value = brightnessLevel;
     document.getElementById('contrast-input').value = contrastLevel;
     document.getElementById('zoom-input').value = zoomLevel;
+}
+
+function resetAuxValues() {
+    auxBrightnessLevel = brightnessLevel;
+    auxContrastLevel = contrastLevel;
+    auxGammaLevel = gammaLevel;
+    auxZoomLevel = zoomLevel;
 }
 
 function isValidKernel(x, y) {
@@ -2199,28 +2201,31 @@ async function loadDefaultImage(imageFile) {
 
 function undo() {
     if (undoStack.length > 1) {
-        redoStack.push(imageProcessed.src);
+        redoStack.push(new statusObject(
+            imageProcessed.src, 
+            brightnessLevel, 
+            contrastLevel, 
+            gammaLevel, 
+            zoomLevel
+        ));
 
-        brightnessRedoStack.push(brightnessLevel);
-        contrastRedoStack.push(contrastLevel);
-        gammaRedoStack.push(gammaLevel);
-        zoomRedoStack.push(zoomLevel);
+        let object = undoStack.pop();
 
-        let previousSrc = undoStack.pop();
+        brightnessLevel = object.brightness;
+        contrastLevel = object.contrast;
+        gammaLevel = object.gamma;
+        zoomLevel = object.zoom;
 
-        brightnessLevel = brightnessUndoStack.pop();
-        contrastLevel = contrastUndoStack.pop();
-        gammaLevel = gammaUndoStack.pop();
-        zoomLevel = zoomUndoStack.pop();
+        resetAuxValues();
 
         document.getElementById('brightness-input').value = brightnessLevel;
         document.getElementById('contrast-input').value = contrastLevel;
         document.getElementById('gamma-input').value = gammaLevel;
         document.getElementById('zoom-input').value = zoomLevel;
 
-        if (previousSrc) {
+        if (object) {
             // imageProcessed = netpbmToImageData(imageData);
-            imageProcessed.src = previousSrc;
+            imageProcessed.src = object.imageSrc;
             isUndoRedo = true;
             renderFunctions(true);
         }
@@ -2229,29 +2234,31 @@ function undo() {
 
 function redo() {
     if (redoStack.length > 0) {
-        undoStack.push(imageProcessed.src);
+        undoStack.push(new statusObject(
+            imageProcessed.src, 
+            brightnessLevel, 
+            contrastLevel, 
+            gammaLevel, 
+            zoomLevel
+        ));
 
-        brightnessUndoStack.push(brightnessLevel);
-        contrastUndoStack.push(contrastLevel);
-        gammaUndoStack.push(gammaLevel);
-        zoomUndoStack.push(zoomLevel);
+        let object = redoStack.pop();
 
-        let nextSrc = redoStack.pop();
+        brightnessLevel = object.brightness;
+        contrastLevel = object.contrast;
+        gammaLevel = object.gamma;
+        zoomLevel = object.zoom;
 
-        brightnessLevel = brightnessRedoStack.pop();
-        contrastLevel = contrastRedoStack.pop();
-        gammaLevel = gammaRedoStack.pop();
-        zoomLevel = zoomRedoStack.pop();
+        resetAuxValues();
 
         document.getElementById('brightness-input').value = brightnessLevel;
         document.getElementById('contrast-input').value = contrastLevel;
         document.getElementById('gamma-input').value = gammaLevel;
         document.getElementById('zoom-input').value = zoomLevel;
 
-        if (nextSrc) {
-            console.log('3');
+        if (object) {
             // imageProcessed.src = netpbmToImageData(imageData);
-            imageProcessed.src = nextSrc;
+            imageProcessed.src = object.imageSrc;
             isUndoRedo = true;
             renderFunctions(true);
         }
@@ -2262,22 +2269,28 @@ function saveState(override) {
     if (isUndoRedo)
         return;
 
-    if (override)
-        undoStack.push(imageProcessed.src);
-    else {
-        brightnessUndoStack.push(auxBrightnessLevel);
-        contrastUndoStack.push(auxContrastLevel);
-        gammaUndoStack.push(auxGammaLevel);
-        zoomUndoStack.push(auxZoomLevel);
-
-        if (brightnessUndoStack.length > undoStack.length)
-            undoStack.push(imageProcessed.src);
+    if (override) {
+        undoStack.push(new statusObject(
+            imageProcessed.src, 
+            brightnessLevel, 
+            contrastLevel, 
+            gammaLevel, 
+            zoomLevel
+        ));
 
         redoStack = [];
-        brightnessRedoStack = [];
-        contrastRedoStack = [];
-        gammaRedoStack = [];
-        zoomRedoStack = [];
+    } else if (isTemporal) {
+        undoStack.push(new statusObject(
+            imageProcessed.src, 
+            auxBrightnessLevel, 
+            auxContrastLevel, 
+            auxGammaLevel, 
+            auxZoomLevel
+        ));
+
+        redoStack = [];
+
+        isTemporal = false;
     }
 }
 
@@ -2354,6 +2367,7 @@ async function main() {
 
             brightnessLevel = parseFloat(value);
             // initWebGPU(brightnessShader(brightnessLevel));//false
+            isTemporal = true;
             temporalShaders();
         });
         document.getElementById('contrast-input').addEventListener('input', (event) => {
@@ -2366,9 +2380,13 @@ async function main() {
 
             contrastLevel = parseFloat(value);
             // initWebGPU(contrastShader(contrastLevel));//false
+            isTemporal = true;
             temporalShaders();
         });
-        document.getElementById('zoom-input').addEventListener('input', (event) => { temporalShaders(); });
+        document.getElementById('zoom-input').addEventListener('input', (event) => { 
+            isTemporal = true;
+            temporalShaders(); 
+        });
         document.getElementById('zoom-prox').addEventListener('change', (event) => { temporalShaders(); });
         document.getElementById('zoom-bilineal').addEventListener('change', (event) => { temporalShaders(); });
         document.getElementById('gamma-input').addEventListener('input', (event) => {
@@ -2381,6 +2399,7 @@ async function main() {
 
             gammaLevel = parseFloat(value);
             // initWebGPU(gammaShader(gammaLevel));//false
+            isTemporal = true;
             temporalShaders();
         });
         document.getElementById('menu-average').addEventListener('click', (event) => {
