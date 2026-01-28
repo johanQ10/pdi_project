@@ -62,6 +62,7 @@ const TypeCv = {
   BITREDUCTION: 11,
   POPULARITY: 12,
   KMEANSCOLOR: 13,
+  REGIONGROWING: 14,
 };
 
 let vertexShader = `
@@ -1608,6 +1609,7 @@ function saveRle() {
 
     const rleText = rleCompressNetpbm(netpbmData);
     console.log(rleText);
+
     const blob = new Blob([rleText], { type: 'text/plain' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -1927,7 +1929,7 @@ function render(device, context, pipeline, bindGroup, canvas, override) {
     context2d.drawImage(canvas, 0, 0);
 
     imageSrc = canvas2d.toDataURL('image/png');
-    console.log('5');
+
     if (override)
         imageProcessed.src = imageSrc;
 
@@ -2011,6 +2013,15 @@ function drawPannedImage() {
 
     const canvas = document.getElementById('gpu-canvas-2d-panned');
 
+    canvas.addEventListener('click', function(event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.floor(event.clientX - rect.left);
+        const y = Math.floor(event.clientY - rect.top);
+
+        document.getElementById('region-growing-x-input').value = x;
+        document.getElementById('region-growing-y-input').value = y;
+    });
+
     canvas.width = imageTemporal.naturalWidth;
     canvas.height = imageTemporal.naturalHeight;
 
@@ -2035,7 +2046,6 @@ function drawPannedImage() {
 
 // Main function
 async function initWebGPU(shaderCode, override = false) {
-    console.log('go save state');
     saveState(override);
 
     let image;
@@ -2173,12 +2183,9 @@ async function loadDefaultImage(imageFile) {
             console.log(imageSrc);
         }
 
-        console.log('1');
         imageProcessed.src = imageSrc;
         imageOriginal.src = imageSrc;
         imageTemporal.src = imageSrc;
-
-        console.log('loadDefaultImage: ' + imageProcessed.src);
 
         imageOriginal.onload = function() {
             let maxImg = imageOriginal.naturalWidth;
@@ -2487,6 +2494,7 @@ async function main() {
         document.getElementById('menu-umbral-isodata').addEventListener('click', (event) => { initOpenCV(TypeCv.ISODATA, true); });
         document.getElementById('menu-umbral-kmeans').addEventListener('click', (event) => { initOpenCV(TypeCv.KMEANS, true); });
         document.getElementById('menu-equalization').addEventListener('click', (event) => { initOpenCV(TypeCv.EQUALIZATION, true); });
+        document.getElementById('region-growing-btn').addEventListener('click', (event) => { initOpenCV(TypeCv.REGIONGROWING, true); });
 
         document.getElementById('cuantizacion-bits-btn').addEventListener('click', (event) => { initOpenCV(TypeCv.BITREDUCTION, true); });
         document.getElementById('cuantizacion-popularity-btn').addEventListener('click', (event) => { initOpenCV(TypeCv.POPULARITY, true); });
@@ -2556,6 +2564,7 @@ async function initOpenCV(type, override = false) {
             case TypeCv.BITREDUCTION: bitReductionCv(cv, auxCanvas); break;
             case TypeCv.POPULARITY: popularityCv(cv, auxCanvas); break;
             case TypeCv.KMEANSCOLOR: kMeansColorCv(cv, auxCanvas); break;
+            case TypeCv.REGIONGROWING: regionGrowingCv(cv, auxCanvas); break;
             default: break;
         }
 
@@ -2563,7 +2572,7 @@ async function initOpenCV(type, override = false) {
         gpuCtx.drawImage(auxCanvas, 0, 0);
 
         imageSrc = gpuCanvas2d.toDataURL('image/png');
-        console.log('4');
+
         if (override)
             imageProcessed.src = imageSrc;
 
@@ -2885,6 +2894,58 @@ function equalizationCv(cv, canvas) {
     src.delete();
     ycrcb.delete();
     channels.delete();
+}
+
+function regionGrowingCv(cv, canvas) {
+    let input = document.getElementById('region-growing-range-input').value;
+
+    if (input === '')
+        input = '0';
+        
+    let value = parseInt(input);
+
+    let x = parseInt(document.getElementById('region-growing-x-input').value);
+    let y = parseInt(document.getElementById('region-growing-y-input').value);
+
+    let colorHex = document.getElementById('region-growing-color-input').value;
+    const r = parseInt(colorHex.substr(1, 2), 16);
+    const g = parseInt(colorHex.substr(3, 2), 16);
+    const b = parseInt(colorHex.substr(5, 2), 16);
+
+    const range = document.querySelector('input[name="region-growing-range"]:checked').value;
+    const connectivity = parseInt(document.querySelector('input[name="region-growing-connectivity"]:checked').value);
+
+    let src = cv.imread(canvas);
+
+    cv.cvtColor(src, src, cv.COLOR_RGBA2RGB, 0);
+
+    // Flags
+    let flags;
+
+    if (range === 'fixed')
+        flags = connectivity | cv.FLOODFILL_FIXED_RANGE;
+    else flags = connectivity;
+
+    // Parámetros configurables
+    let seedPoint = new cv.Point(x, y); // Cambia por el punto deseado
+    let newVal = new cv.Scalar(r, g, b); // Valor para la región
+    let loDiff = new cv.Scalar(value, value, value);
+    let upDiff = new cv.Scalar(value, value, value);
+
+    let rect = new cv.Rect();
+
+    // Crear máscara (2 filas y columnas más grande)
+    let mask = new cv.Mat.zeros(src.rows + 2, src.cols + 2, cv.CV_8UC1);
+
+    // floodFill
+    cv.floodFill(src, mask, seedPoint, newVal, rect, loDiff, upDiff, flags);
+
+    // Mostrar resultado
+    cv.imshow(canvas, src);
+
+    // Liberar memoria
+    src.delete();
+    mask.delete();
 }
 
 // Color Quantization

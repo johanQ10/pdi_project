@@ -288,6 +288,34 @@
                         </a>
                     </div>
                 </div>
+                <!-- Region Growing -->
+                <div class="menu-group">
+                    <button class="menu-group-title" type="button">Region Growing</button>
+                    <div class="menu-group-content">
+                        <div style="padding-left: 8px;">
+                            <span><b>Rango:</b> </span>
+                            <input type="number" id="region-growing-range-input" class="input-style filters" value="0" step="1" min="0">
+                        </div>
+                        <div style="padding-left: 8px;">
+                            <span style="vertical-align: super;"><b>Color:</b> </span>
+                            <input type="color" id="region-growing-color-input" value="#ff0000">
+                        </div>
+                        <div class="radio-group" style="padding-left: 8px;">
+                            <span><b>Tipo de Rango:</b> </span>
+                            <label style="margin-top: 8px;"><input type="radio" name="region-growing-range" value="fixed" checked><span>Fijo</span></label>
+                            <label style="margin-bottom: 8px;"><input type="radio" name="region-growing-range" value="floating"><span>Flotante</span></label>
+                            <span><b>Conectividad:</b> </span>
+                            <label style="margin-top: 8px;"><input type="radio" name="region-growing-connectivity" value="4" checked><span>4</span></label>
+                            <label><input type="radio" name="region-growing-connectivity" value="8"><span>8</span></label>
+                        </div>
+                        <div style="padding-left: 8px;">
+                            <span><b>Punto:</b> </span>
+                            <input type="number" id="region-growing-x-input" class="input-style filters" value="0" step="1" min="0">
+                            <input type="number" id="region-growing-y-input" class="input-style filters" value="0" step="1" min="0">
+                        </div>
+                        <button id="region-growing-btn" style="margin-left: 8px; width: 95%;" type="button" class="menu-btn">Go</button>
+                    </div>
+                </div>
                 <!-- Otros -->
                 <div class="menu-group">
                     <button class="menu-group-title" type="button">Otros</button>
