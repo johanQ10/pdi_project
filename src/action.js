@@ -63,6 +63,7 @@ const TypeCv = {
   POPULARITY: 12,
   KMEANSCOLOR: 13,
   REGIONGROWING: 14,
+  WHITEBALANCE: 15,
 };
 
 let vertexShader = `
@@ -2495,10 +2496,10 @@ async function main() {
         document.getElementById('menu-umbral-kmeans').addEventListener('click', (event) => { initOpenCV(TypeCv.KMEANS, true); });
         document.getElementById('menu-equalization').addEventListener('click', (event) => { initOpenCV(TypeCv.EQUALIZATION, true); });
         document.getElementById('region-growing-btn').addEventListener('click', (event) => { initOpenCV(TypeCv.REGIONGROWING, true); });
-
         document.getElementById('cuantizacion-bits-btn').addEventListener('click', (event) => { initOpenCV(TypeCv.BITREDUCTION, true); });
         document.getElementById('cuantizacion-popularity-btn').addEventListener('click', (event) => { initOpenCV(TypeCv.POPULARITY, true); });
         document.getElementById('cuantizacion-kmeans-btn').addEventListener('click', (event) => { initOpenCV(TypeCv.KMEANSCOLOR, true); });
+        document.getElementById('menu-white-balance').addEventListener('click', (event) => { initOpenCV(TypeCv.WHITEBALANCE, true); });
     }
 }
 // --- End Init --- //
@@ -2565,6 +2566,7 @@ async function initOpenCV(type, override = false) {
             case TypeCv.POPULARITY: popularityCv(cv, auxCanvas); break;
             case TypeCv.KMEANSCOLOR: kMeansColorCv(cv, auxCanvas); break;
             case TypeCv.REGIONGROWING: regionGrowingCv(cv, auxCanvas); break;
+            case TypeCv.WHITEBALANCE: whiteBalanceCv(cv, auxCanvas); break;
             default: break;
         }
 
@@ -3031,7 +3033,8 @@ function popularityCv(cv, canvas) {
     src.delete();
 }
 
-function kMeansColorCv(cv, canvas, maxIter = 10) {
+function kMeansColorCv(cv, canvas) {
+    let maxIter = 10;
     let kmeansInput = document.getElementById('cuantizacion-kmeans-input').value;
 
     if (kmeansInput === '')
@@ -3086,6 +3089,56 @@ function kMeansColorCv(cv, canvas, maxIter = 10) {
     newImg.delete();
 }
 // End Color Quantization
+
+function whiteBalanceCv(cv, canvas) {
+    let src = cv.imread(canvas);
+    cv.cvtColor(src, src, cv.COLOR_RGBA2RGB, 0);
+    cv.cvtColor(src, src, cv.COLOR_RGB2YUV, 0);
+
+    let channels = new cv.MatVector();
+    cv.split(src, channels);
+
+    let Y = channels.get(0);
+    let U = channels.get(1);
+    let V = channels.get(2);
+
+    let meanU = parseInt(cv.mean(U)[0]);
+    let meanV = parseInt(cv.mean(V)[0]);
+
+    let uShift = 128 - meanU;
+    let vShift = 128 - meanV;
+
+    cv.add(U, new cv.Mat(U.rows, U.cols, U.type(), [uShift, 0, 0, 0]), U);
+    cv.add(V, new cv.Mat(V.rows, V.cols, V.type(), [vShift, 0, 0, 0]), V);
+
+    cv.min(U, new cv.Mat(U.rows, U.cols, U.type(), [255, 0, 0, 0]), U);
+    cv.max(U, new cv.Mat(U.rows, U.cols, U.type(), [0, 0, 0, 0]), U);
+    cv.min(V, new cv.Mat(V.rows, V.cols, V.type(), [255, 0, 0, 0]), V);
+    cv.max(V, new cv.Mat(V.rows, V.cols, V.type(), [0, 0, 0, 0]), V);
+
+    let balanced = new cv.Mat();
+    let outChannels = new cv.MatVector();
+    outChannels.push_back(Y);
+    outChannels.push_back(U);
+    outChannels.push_back(V);
+
+    cv.merge(outChannels, balanced);
+
+    let dst = new cv.Mat();
+    cv.cvtColor(balanced, dst, cv.COLOR_YUV2RGB, 0);
+    cv.cvtColor(dst, dst, cv.COLOR_RGB2RGBA, 0);
+
+    cv.imshow(canvas, dst);
+
+    src.delete();
+    channels.delete();
+    Y.delete();
+    U.delete();
+    V.delete();
+    balanced.delete();
+    outChannels.delete();
+    dst.delete();
+}
 
 function rotateCv(cv, canvas) {
     let input = document.getElementById('rotate-input');
