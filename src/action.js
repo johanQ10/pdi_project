@@ -1,10 +1,13 @@
 class statusObject {
-    constructor(imageSrc, brightness, contrast, gamma, zoom) {
+    constructor(imageSrc, brightness, contrast, gamma, zoom, hue, lightness, saturation) {
         this.imageSrc = imageSrc;
         this.brightness = brightness;
         this.contrast = contrast;
         this.gamma = gamma;
         this.zoom = zoom;
+        this.hue = hue;
+        this.lightness = lightness;
+        this.saturation = saturation;
     }
 }
 
@@ -30,11 +33,17 @@ let brightnessLevel = 0;
 let contrastLevel = 1;
 let gammaLevel = 1;
 let zoomLevel = 1;
+let hueLevel = 0;
+let lightnessLevel = 1;
+let saturationLevel = 1;
 
 let auxBrightnessLevel = 0;
 let auxContrastLevel = 1;
 let auxGammaLevel = 1;
 let auxZoomLevel = 1;
+let auxHueLevel = 0;
+let auxLightnessLevel = 1;
+let auxSaturationLevel = 1;
 
 let typeZoom = 'prox';
 let colorValue = "#ff0000";
@@ -99,6 +108,95 @@ let vertexShader = `
         return output;
     }
     `;
+
+let functionsShader = `
+    fn rgb2hls(c: vec3<f32>) -> vec3<f32> {
+        var maxc: f32 = max(max(c.x, c.y), c.z);
+        var minc: f32 = min(min(c.x, c.y), c.z);
+        var l: f32 = (maxc + minc) * 0.5;
+        var s: f32 = 0.0;
+        var h: f32 = 0.0;
+
+        if (maxc != minc) {
+            var d: f32 = maxc - minc;
+
+            if (l < 0.5) {
+                s = d / (maxc + minc);
+            } else {
+                s = d / (2.0 - maxc - minc);
+            }
+
+            if (maxc == c.x) {
+                h = (c.y - c.z) / d;
+
+                if (c.y < c.z) {
+                    h += 6.0;
+                }
+            } else if (maxc == c.y) {
+                h = (c.z - c.x) / d + 2.0;
+            } else {
+                h = (c.x - c.y) / d + 4.0;
+            }
+
+            h /= 6.0;
+        }
+
+        return vec3(h, l, s);
+    }
+
+    fn hue2rgb(p: f32, q: f32, t: f32) -> f32 {
+        var t2 = t;
+
+        if (t2 < 0.0) {
+            t2 += 1.0;
+        }
+        if (t2 > 1.0) {
+            t2 -= 1.0;
+        }
+        if (t2 < 1.0/6.0) {
+            return p + (q - p) * 6.0 * t2;
+        }
+        if (t2 < 1.0/2.0) {
+            return q;
+        }
+        if (t2 < 2.0/3.0) {
+            return p + (q - p) * (2.0/3.0 - t2) * 6.0;
+        }
+
+        return p;
+    }
+
+    fn hls2rgb(hls: vec3<f32>) -> vec3<f32> {
+        var h: f32 = hls.x;
+        var l: f32 = hls.y;
+        var s: f32 = hls.z;
+        var r: f32 = 0.0;
+        var g: f32 = 0.0;
+        var b: f32 = 0.0;
+
+        if (s == 0.0) {
+            r = l;
+            g = l;
+            b = l;
+        } else {
+            var q: f32;
+
+            if (l < 0.5) {
+                q = l * (1.0 + s);
+            } else {
+                q = l + s - l * s;
+            }
+
+            var p: f32 = 2.0 * l - q;
+
+            r = hue2rgb(p, q, h + 1.0/3.0);
+            g = hue2rgb(p, q, h);
+            b = hue2rgb(p, q, h - 1.0/3.0);
+        }
+
+        return vec3(r, g, b);
+    }
+`;
 
 // --- Shaders --- //
 function generalShader(imgWidth, imgHeight, canvasSize) {
@@ -455,7 +553,7 @@ function temporalShader() {
     if (zoomLevel === 1)
         zoomShader = `let uvResult = input.uv;`;
 
-    return vertexShader +
+    return vertexShader + functionsShader +
     `
     @fragment
     fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
@@ -481,7 +579,18 @@ function temporalShader() {
         g = clamp(g, 0.0, 1.0);
         b = clamp(b, 0.0, 1.0);
 
-        return vec4<f32>(r, g, b, color.a);
+        var colorFinal = vec3<f32>(r, g, b);
+        var hls = rgb2hls(colorFinal);
+
+        hls.x = (hls.x + ${hueLevel}) % 1.0;
+        hls.y = clamp(hls.y * ${lightnessLevel}, 0.0, 1.0);
+        hls.z = clamp(hls.z * ${saturationLevel}, 0.0, 1.0);
+
+        var rgb = hls2rgb(hls);
+
+        rgb = clamp(rgb, vec3<f32>(0.0), vec3<f32>(1.0));
+
+        return vec4<f32>(rgb, color.a);
     }
     `;
 }
@@ -1959,12 +2068,19 @@ function resetValues() {
     contrastLevel = 1;
     gammaLevel = 1;
     zoomLevel = 1;
+    hueLevel = 0;
+    lightnessLevel = 1;
+    saturationLevel = 1;
 
     resetAuxValues();
 
     document.getElementById('brightness-input').value = brightnessLevel;
     document.getElementById('contrast-input').value = contrastLevel;
     document.getElementById('zoom-input').value = zoomLevel;
+    document.getElementById('gamma-input').value = gammaLevel;
+    document.getElementById('hue-input').value = hueLevel * 180;
+    document.getElementById('lightness-input').value = lightnessLevel;
+    document.getElementById('saturation-input').value = saturationLevel;
 }
 
 function resetAuxValues() {
@@ -1972,6 +2088,9 @@ function resetAuxValues() {
     auxContrastLevel = contrastLevel;
     auxGammaLevel = gammaLevel;
     auxZoomLevel = zoomLevel;
+    auxHueLevel = hueLevel;
+    auxLightnessLevel = lightnessLevel;
+    auxSaturationLevel = saturationLevel;
 }
 
 function isValidKernel(x, y) {
@@ -2214,7 +2333,10 @@ function undo() {
             brightnessLevel, 
             contrastLevel, 
             gammaLevel, 
-            zoomLevel
+            zoomLevel,
+            hueLevel,
+            lightnessLevel,
+            saturationLevel
         ));
 
         let object = undoStack.pop();
@@ -2223,6 +2345,9 @@ function undo() {
         contrastLevel = object.contrast;
         gammaLevel = object.gamma;
         zoomLevel = object.zoom;
+        hueLevel = object.hue;
+        lightnessLevel = object.lightness;
+        saturationLevel = object.saturation;
 
         resetAuxValues();
 
@@ -2230,6 +2355,9 @@ function undo() {
         document.getElementById('contrast-input').value = contrastLevel;
         document.getElementById('gamma-input').value = gammaLevel;
         document.getElementById('zoom-input').value = zoomLevel;
+        document.getElementById('hue-input').value = hueLevel * 180;
+        document.getElementById('lightness-input').value = lightnessLevel;
+        document.getElementById('saturation-input').value = saturationLevel;
 
         if (object) {
             // imageProcessed = netpbmToImageData(imageData);
@@ -2247,7 +2375,10 @@ function redo() {
             brightnessLevel, 
             contrastLevel, 
             gammaLevel, 
-            zoomLevel
+            zoomLevel,
+            hueLevel,
+            lightnessLevel,
+            saturationLevel
         ));
 
         let object = redoStack.pop();
@@ -2256,6 +2387,9 @@ function redo() {
         contrastLevel = object.contrast;
         gammaLevel = object.gamma;
         zoomLevel = object.zoom;
+        hueLevel = object.hue;
+        lightnessLevel = object.lightness;
+        saturationLevel = object.saturation;
 
         resetAuxValues();
 
@@ -2263,6 +2397,9 @@ function redo() {
         document.getElementById('contrast-input').value = contrastLevel;
         document.getElementById('gamma-input').value = gammaLevel;
         document.getElementById('zoom-input').value = zoomLevel;
+        document.getElementById('hue-input').value = hueLevel * 180;
+        document.getElementById('lightness-input').value = lightnessLevel;
+        document.getElementById('saturation-input').value = saturationLevel;
 
         if (object) {
             // imageProcessed.src = netpbmToImageData(imageData);
@@ -2283,7 +2420,10 @@ function saveState(override) {
             brightnessLevel, 
             contrastLevel, 
             gammaLevel, 
-            zoomLevel
+            zoomLevel,
+            hueLevel,
+            lightnessLevel,
+            saturationLevel
         ));
 
         redoStack = [];
@@ -2293,7 +2433,10 @@ function saveState(override) {
             auxBrightnessLevel, 
             auxContrastLevel, 
             auxGammaLevel, 
-            auxZoomLevel
+            auxZoomLevel,
+            auxHueLevel,
+            auxLightnessLevel,
+            auxSaturationLevel
         ));
 
         redoStack = [];
@@ -2407,6 +2550,42 @@ async function main() {
 
             gammaLevel = parseFloat(value);
             // initWebGPU(gammaShader(gammaLevel));//false
+            isTemporal = true;
+            temporalShaders();
+        });
+        document.getElementById('hue-input').addEventListener('input', (event) => {
+            auxHueLevel = hueLevel;
+
+            let value = event.target.value;
+
+            if (value === '')
+                value = '0.0';
+
+            hueLevel = parseFloat(value) / 180.0;
+            isTemporal = true;
+            temporalShaders();
+        });
+        document.getElementById('saturation-input').addEventListener('input', (event) => {
+            auxSaturationLevel = saturationLevel;
+
+            let value = event.target.value;
+
+            if (value === '')
+                value = '1.0';
+
+            saturationLevel = parseFloat(value);
+            isTemporal = true;
+            temporalShaders();
+        });
+        document.getElementById('lightness-input').addEventListener('input', (event) => {
+            auxLightnessLevel = lightnessLevel;
+
+            let value = event.target.value;
+
+            if (value === '')
+                value = '1.0';
+
+            lightnessLevel = parseFloat(value);
             isTemporal = true;
             temporalShaders();
         });
