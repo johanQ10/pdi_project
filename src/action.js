@@ -2078,7 +2078,7 @@ function resetValues() {
     document.getElementById('contrast-input').value = contrastLevel;
     document.getElementById('zoom-input').value = zoomLevel;
     document.getElementById('gamma-input').value = gammaLevel;
-    document.getElementById('hue-input').value = hueLevel * 180;
+    document.getElementById('hue-input').value = hueLevel * 360;
     document.getElementById('lightness-input').value = lightnessLevel;
     document.getElementById('saturation-input').value = saturationLevel;
 }
@@ -2355,7 +2355,7 @@ function undo() {
         document.getElementById('contrast-input').value = contrastLevel;
         document.getElementById('gamma-input').value = gammaLevel;
         document.getElementById('zoom-input').value = zoomLevel;
-        document.getElementById('hue-input').value = hueLevel * 180;
+        document.getElementById('hue-input').value = hueLevel * 360;
         document.getElementById('lightness-input').value = lightnessLevel;
         document.getElementById('saturation-input').value = saturationLevel;
 
@@ -2397,7 +2397,7 @@ function redo() {
         document.getElementById('contrast-input').value = contrastLevel;
         document.getElementById('gamma-input').value = gammaLevel;
         document.getElementById('zoom-input').value = zoomLevel;
-        document.getElementById('hue-input').value = hueLevel * 180;
+        document.getElementById('hue-input').value = hueLevel * 360;
         document.getElementById('lightness-input').value = lightnessLevel;
         document.getElementById('saturation-input').value = saturationLevel;
 
@@ -2561,7 +2561,7 @@ async function main() {
             if (value === '')
                 value = '0.0';
 
-            hueLevel = parseFloat(value) / 180.0;
+            hueLevel = parseFloat(value) / 360.0;
             isTemporal = true;
             temporalShaders();
         });
@@ -3287,13 +3287,13 @@ function whiteBalanceCv(cv, canvas) {
     let uShift = 128 - meanU;
     let vShift = 128 - meanV;
 
-    cv.add(U, new cv.Mat(U.rows, U.cols, U.type(), [uShift, 0, 0, 0]), U);
-    cv.add(V, new cv.Mat(V.rows, V.cols, V.type(), [vShift, 0, 0, 0]), V);
+    if (uShift > 0)
+        cv.add(U, new cv.Mat(U.rows, U.cols, U.type(), [uShift, 0, 0, 0]), U);
+    else cv.subtract(U, new cv.Mat(U.rows, U.cols, U.type(), [-uShift, 0, 0, 0]), U);
 
-    cv.min(U, new cv.Mat(U.rows, U.cols, U.type(), [255, 0, 0, 0]), U);
-    cv.max(U, new cv.Mat(U.rows, U.cols, U.type(), [0, 0, 0, 0]), U);
-    cv.min(V, new cv.Mat(V.rows, V.cols, V.type(), [255, 0, 0, 0]), V);
-    cv.max(V, new cv.Mat(V.rows, V.cols, V.type(), [0, 0, 0, 0]), V);
+    if (vShift > 0)
+        cv.add(V, new cv.Mat(V.rows, V.cols, V.type(), [vShift, 0, 0, 0]), V);
+    else cv.subtract(V, new cv.Mat(V.rows, V.cols, V.type(), [-vShift, 0, 0, 0]), V);
 
     let balanced = new cv.Mat();
     let outChannels = new cv.MatVector();
