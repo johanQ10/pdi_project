@@ -37,6 +37,8 @@ let hueLevel = 0;
 let lightnessLevel = 1;
 let saturationLevel = 1;
 
+let rotateLevel = 0;
+
 let auxBrightnessLevel = 0;
 let auxContrastLevel = 1;
 let auxGammaLevel = 1;
@@ -582,7 +584,7 @@ function temporalShader() {
         var colorFinal = vec3<f32>(r, g, b);
         var hls = rgb2hls(colorFinal);
 
-        hls.x = (hls.x + ${hueLevel}) % 1.0;
+        hls.x = clamp(hls.x + ${hueLevel}, 0.0, 1.0);
         hls.y = clamp(hls.y * ${lightnessLevel}, 0.0, 1.0);
         hls.z = clamp(hls.z * ${saturationLevel}, 0.0, 1.0);
 
@@ -720,6 +722,58 @@ function borderShader(mKernelX, mKernelY, kw, kh, direction) {
 
 
         return vertexShader + conditions + finalPart;
+}
+
+function wienerShader(kw, kh, noiseVariance = 0.01) {
+    alert(noiseVariance);
+    return vertexShader + `
+        @fragment
+        fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            let texSize = vec2<f32>(textureDimensions(myTexture, 0));
+            let pixel = input.uv * texSize;
+
+            var mean = vec3<f32>(0.0, 0.0, 0.0);
+            var varLocal = vec3<f32>(0.0, 0.0, 0.0);
+
+            let kHalfX = ${Math.floor(kw / 2)};
+            let kHalfY = ${Math.floor(kh / 2)};
+            let n = f32(${kw * kh});
+
+            // Calcular la media local
+            for (var y: i32 = 0; y < ${kh}; y = y + 1) {
+                for (var x: i32 = 0; x < ${kw}; x = x + 1) {
+                    let offset = vec2<f32>(f32(x - kHalfX), f32(y - kHalfY));
+                    let coord = (pixel + offset) / texSize;
+                    let color = textureSample(myTexture, mySampler, clamp(coord, vec2<f32>(0.0), vec2<f32>(1.0)));
+                    mean = mean + vec3<f32>(color.r, color.g, color.b);
+                }
+            }
+            mean = mean / n;
+            mean = clamp(mean, vec3<f32>(0.0), vec3<f32>(1.0));
+
+            // Calcular la varianza local
+            for (var y: i32 = 0; y < ${kh}; y = y + 1) {
+                for (var x: i32 = 0; x < ${kw}; x = x + 1) {
+                    let offset = vec2<f32>(f32(x - kHalfX), f32(y - kHalfY));
+                    let coord = (pixel + offset) / texSize;
+                    let color = textureSample(myTexture, mySampler, clamp(coord, vec2<f32>(0.0), vec2<f32>(1.0)));
+                    let diff = vec3<f32>(color.r, color.g, color.b) - mean;
+                    varLocal = varLocal + diff * diff;
+                }
+            }
+            varLocal = varLocal / n;
+            varLocal = clamp(varLocal, vec3<f32>(0.0), vec3<f32>(1.0));
+
+            // Obtener el valor original del pixel
+            let colorOrig = textureSample(myTexture, mySampler, clamp(input.uv, vec2<f32>(0.0), vec2<f32>(1.0)));
+            let noiseVar = vec3<f32>(${noiseVariance}, ${noiseVariance}, ${noiseVariance});
+
+            // Wiener: m + ((v - noise) / v) * (I - m)
+            var result = mean + (max(varLocal - noiseVar, vec3<f32>(0.0)) / max(varLocal, noiseVar)) * (vec3<f32>(colorOrig.r, colorOrig.g, colorOrig.b) - mean);
+            result = clamp(result, vec3<f32>(0.0), vec3<f32>(1.0));
+            return vec4<f32>(result, 1.0);
+        }
+    `;
 }
 
 function averageShader(kw, kh) {
@@ -2144,6 +2198,9 @@ function drawPannedImage() {
 
     canvas.width = imageTemporal.naturalWidth;
     canvas.height = imageTemporal.naturalHeight;
+    
+    canvas.width = document.getElementById('gpu-canvas-2d').width;
+    canvas.height = document.getElementById('gpu-canvas-2d').height;
 
     if (!canvas) return;
 
@@ -2609,6 +2666,14 @@ async function main() {
 
             if (isValidKernel(x, y))
                 initWebGPU(gaussianShader(x, y), true);
+        });
+        document.getElementById('menu-wiener').addEventListener('click', (event) => {
+            const x = parseInt(document.getElementById('wiener-input-x').value)
+            const y = parseInt(document.getElementById('wiener-input-y').value)
+            const noise = parseFloat(document.getElementById('wiener-input-noise').value);
+
+            if (isValidKernel(x, y))
+                initWebGPU(wienerShader(x, y, noise), true);
         });
         document.getElementById('menu-prewitt').addEventListener('click', (event) => {
             const x = parseInt(document.getElementById('prewitt-input-x').value)
@@ -3326,51 +3391,32 @@ function rotateCv(cv, canvas) {
     if (value === 0)
         return;
 
-    value = -value
+    value = -value;
 
-    let src = cv.imread(canvas);
-    let center = new cv.Point(src.cols / 2, src.rows / 2);
-    let rotateMat = cv.getRotationMatrix2D(center, value, 1.0);
-    let size = new cv.Size(src.cols, src.rows);
+    rotateLevel += value;
 
-    cv.warpAffine(src, src, rotateMat, size, cv.INTER_CUBIC, cv.BORDER_REPLICATE, new cv.Scalar());
-    cv.imshow(canvas, src);
+    // let canvasAux = document.createElement('canvas');
+    // canvasAux.width = imageProcessed.width;
+    // canvasAux.height = imageProcessed.height;
+    // let ctx = canvasAux.getContext('2d');
+    // ctx.drawImage(imageProcessed, 0, 0);
 
-    src.delete();
-    rotateMat.delete();
-}
+    let src = cv.imread(document.getElementById('gpu-canvas-2d-aux'));
+    let w = imageOriginal.width;
+    let h = imageOriginal.height;
 
-// Rotación en ángulo arbitrario sin recortar bordes
-function rotarImagenSinRecorte(cv, canvas) {
-    let input = document.getElementById('rotate-input');
-    let angulo = parseInt(input.value);
+    let center = new cv.Point(w / 2, h / 2);
+    let rotateMat = cv.getRotationMatrix2D(center, rotateLevel, 1.0);
 
-    if (angulo === 0)
-        return;
-
-    angulo = -angulo
-
-    let src = cv.imread(canvas);
-    let rad = angulo * Math.PI / 180.0;
-    let sin = Math.abs(Math.sin(rad));
-    let cos = Math.abs(Math.cos(rad));
-    let newWidth = Math.floor(src.rows * sin + src.cols * cos);
-    let newHeight = Math.floor(src.rows * cos + src.cols * sin);
-    let center = new cv.Point(src.cols / 2, src.rows / 2);
-    let rotMat = cv.getRotationMatrix2D(center, angulo, 1.0);
-    // Ajustar la traslación para centrar la imagen rotada
-    rotMat.doublePtr(0,2)[0] += (newWidth - src.cols) / 2;
-    rotMat.doublePtr(1,2)[0] += (newHeight - src.rows) / 2;
-
-    let dsize = new cv.Size(newWidth, newHeight);
+    let dsize = new cv.Size(w, h);
     let dst = new cv.Mat();
+    cv.warpAffine(src, dst, rotateMat, dsize, cv.INTER_CUBIC, cv.BORDER_CONSTANT, new cv.Scalar(0, 0, 0, 255));
 
-    cv.warpAffine(src, dst, rotMat, dsize, cv.INTER_CUBIC, cv.BORDER_CONSTANT, new cv.Scalar());
     cv.imshow(canvas, dst);
 
     src.delete();
     dst.delete();
-    rotMat.delete();
+    rotateMat.delete();
 }
 
 // --- End OpenCv --- //
