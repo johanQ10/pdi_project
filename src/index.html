@@ -351,6 +351,7 @@
                         <a href="#" id="menu-custom"><span><b><u>Kernel Custom</u></b></span></a>
                         <a href="#" id="menu-equalization"><b><u>Equalization</u></b></a>
                         <a href="#" id="menu-dft"><b><u>DFT</u></b></a>
+                        <a href="#" id="menu-dct"><b><u>DCT</u></b></a>
                     </div>
                 </div>
                 <!-- Modal DFT -->
@@ -375,6 +376,29 @@
                             <button id="dft-highpass-btn" class="menu-btn">Paso alto</button>
                         </div>
                     </div>
+                </div>
+                <!-- Modal DCT -->
+                <div id="dct-modal" class="modal" style="display:none;">
+                    <div class="modal-content" style="max-width: 700px;">
+                        <span class="close" id="close-dct-modal">&times;</span>
+                        <h2 style="margin:0px 0px 12px 0px;">Transformada Discreta de Coseno (DCT)</h2>
+                        <div style="display: flex; flex-direction: row; gap: 16px; justify-content: center; align-items: center;">
+                            <canvas id="dct-canvas-mag" width="256" height="256" style="border:1px solid #ccc;"></canvas>
+                        </div>
+                        <div style="display: flex; flex-direction: row; gap: 16px; justify-content: center; margin-top: 6px;">
+                            <span style="align-content: center;">Radio:</span>
+                            <input type="number" id="dct-radius-input" class="input-style filters" value="0" step="1" min="0">
+                        </div>
+                        <div style="display: flex; flex-direction: row; gap: 16px; justify-content: center; margin-top: 24px;">
+                            <button id="dct-lowpass-btn" class="menu-btn">Paso bajo</button>
+                            <button id="dct-highpass-btn" class="menu-btn">Paso alto</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Modal para mostrar progreso de DCT -->
+                <div id="dct-loading" style="display:none; position: absolute; top: 50%; left: 25%; width: 50%;z-index: 10000;">
+                    <progress id="dct-progress" value="0" max="1" style="width:100%"></progress>
+                    <span id="dct-progress-text"></span>
                 </div>
                 <!-- Modal for custom kernel -->
                 <div id="custom-kernel-modal" class="modal" style="display:none;">

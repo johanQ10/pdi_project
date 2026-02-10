@@ -24,10 +24,43 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (lowBtn && highBtn) {
         lowBtn.addEventListener('click', function() {
-            initOpenCV(TypeCv.LOWPASS, true);
+            initOpenCV(TypeCv.LOWPASS_DFT, true);
         });
         highBtn.addEventListener('click', function() {
-            initOpenCV(TypeCv.HIGHPASS, true);
+            initOpenCV(TypeCv.HIGHPASS_DFT, true);
+        });
+    }
+});
+// --- Modal DCT ---
+document.addEventListener('DOMContentLoaded', function() {
+    const menuDCT = document.getElementById('menu-dct');
+    const modalDCT = document.getElementById('dct-modal');
+    const closeDCT = document.getElementById('close-dct-modal');
+    const lowBtn = document.getElementById('dct-lowpass-btn');
+    const highBtn = document.getElementById('dct-highpass-btn');
+
+    if (menuDCT && modalDCT && closeDCT) {
+        menuDCT.addEventListener('click', function(e) {
+            e.preventDefault();
+            modalDCT.style.display = 'block';
+            dftOpenCV(TypeCv.DCT);
+        });
+        closeDCT.addEventListener('click', function() {
+            modalDCT.style.display = 'none';
+        });
+        window.addEventListener('click', function(event) {
+            if (event.target === modalDCT) {
+                modalDCT.style.display = 'none';
+            }
+        });
+    }
+
+    if (lowBtn && highBtn) {
+        lowBtn.addEventListener('click', function() {
+            initOpenCV(TypeCv.LOWPASS_DCT, true);
+        });
+        highBtn.addEventListener('click', function() {
+            initOpenCV(TypeCv.HIGHPASS_DCT, true);
         });
     }
 });

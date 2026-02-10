@@ -15,6 +15,8 @@ class statusObject {
 let undoStack = [];
 let redoStack = [];
 
+let dctCalculed = null;
+
 let isCvInit = false;
 let panX = 0;
 let panY = 0;
@@ -78,8 +80,10 @@ const TypeCv = {
   HUE: 16,
   DFT: 17,
   DCT: 18,
-  LOWPASS: 19,
-  HIGHPASS: 20
+  LOWPASS_DFT: 19,
+  HIGHPASS_DFT: 20,
+  LOWPASS_DCT: 21,
+  HIGHPASS_DCT: 22,
 };
 
 let vertexShader = `
@@ -2792,6 +2796,7 @@ function isCvLoaded() {
 }
 
 async function initOpenCV(type, override = false) {
+    try {
     if (isCvLoaded()) {
         saveState(override);
 
@@ -2824,8 +2829,10 @@ async function initOpenCV(type, override = false) {
             case TypeCv.WHITEBALANCE: whiteBalanceCv(cv, auxCanvas); break;
             case TypeCv.HUE: hueCv(cv, auxCanvas); break;
             case TypeCv.DFT: dftCv(cv, auxCanvas); break;
-            case TypeCv.LOWPASS: lowPassCv(cv, auxCanvas); break;
-            case TypeCv.HIGHPASS: highPassCv(cv, auxCanvas); break;
+            case TypeCv.LOWPASS_DFT: lowPassDftCv(cv, auxCanvas); break;
+            case TypeCv.HIGHPASS_DFT: highPassDftCv(cv, auxCanvas); break;
+            case TypeCv.LOWPASS_DCT: lowPassDctCv(cv, auxCanvas); break;
+            case TypeCv.HIGHPASS_DCT: highPassDctCv(cv, auxCanvas); break;
             default: break;
         }
 
@@ -2843,6 +2850,10 @@ async function initOpenCV(type, override = false) {
 
         if (imageTemporal.complete)
             renderFunctions(override);
+    }
+    } catch (err) {
+        console.error('Error OpenCV:', err);
+        alert('Error OpenCV: ' + err);
     }
 }
 
@@ -3509,11 +3520,18 @@ async function dftOpenCV(type) {
     if (isCvLoaded()) {
         const gpuCanvas2d = document.getElementById('gpu-canvas-2d');
 
-        const dftCanvasMag = document.getElementById('dft-canvas-mag');
+        let dftCanvasMag;
+
+        if (type === TypeCv.DFT) dftCanvasMag = document.getElementById('dft-canvas-mag');
+        else dftCanvasMag = document.getElementById('dct-canvas-mag');
+
         dftCanvasMag.width = gpuCanvas2d.width;
         dftCanvasMag.height = gpuCanvas2d.height;
 
-        const dftCanvasPhase = document.getElementById('dft-canvas-phase');
+        let dftCanvasPhase;
+
+        dftCanvasPhase = document.getElementById('dft-canvas-phase');
+
         dftCanvasPhase.width = gpuCanvas2d.width;
         dftCanvasPhase.height = gpuCanvas2d.height;
 
@@ -3525,6 +3543,7 @@ async function dftOpenCV(type) {
 
         switch (type) {
             case TypeCv.DFT: dftCv(cv, gpuCanvas2d, dftCanvasMag, dftCanvasPhase); break;
+            case TypeCv.DCT: dctCv(cv, gpuCanvas2d, dftCanvasMag, dftCanvasPhase); break;
             default: break;
         }
     }
@@ -3608,7 +3627,43 @@ function dftCv(cv, canvasSrc, canvasMag, canvasPhase) {
     tmpPhase.delete();
 }
 
-function lowPassCv(cv, canvas) {
+async function dctCv(cv, canvasSrc, canvasMag, canvasPhase) {
+    let src = cv.imread(canvasSrc);
+
+    if (src.channels() > 1)
+        cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+
+    src.convertTo(src, cv.CV_32F);
+
+    document.getElementById('dct-loading').style.display = 'block';
+
+    let dctCalculed2D = await dct2D(matTo2DArray(src), function(progress) {
+        document.getElementById('dct-progress').value = progress;
+        document.getElementById('dct-progress-text').textContent = Math.round(progress * 100) + '%';
+    });
+
+    if (dctCalculed != null)
+        dctCalculed.delete();
+
+    dctCalculed = new cv.Mat();
+    dctCalculed = array2DToMat(dctCalculed2D);
+
+    document.getElementById('dct-loading').style.display = 'none';
+
+    // Visualizar el espectro (usar log para mejor visualización)
+    cv.absdiff(dctCalculed, new cv.Mat(dctCalculed.rows, dctCalculed.cols, dctCalculed.type(), new cv.Scalar(0)), dctCalculed); // valores absolutos
+    cv.add(dctCalculed, cv.Mat.ones(dctCalculed.rows, dctCalculed.cols, dctCalculed.type()), dctCalculed);
+    cv.log(dctCalculed, dctCalculed);
+
+    cv.normalize(dctCalculed, dctCalculed, 0, 255, cv.NORM_MINMAX);
+    dctCalculed.convertTo(dctCalculed, cv.CV_8U);
+
+    cv.imshow(canvasMag, dctCalculed);
+
+    src.delete();
+}
+
+function lowPassDftCv(cv, canvas) {
     let radius = parseInt(document.getElementById('dft-radius-input').value, 10) || 180;
     let src = cv.imread(canvas);
 
@@ -3675,7 +3730,7 @@ function lowPassCv(cv, canvas) {
     idft.delete();
 }
 
-function highPassCv(cv, canvas) {
+function highPassDftCv(cv, canvas) {
     let radius = parseInt(document.getElementById('dft-radius-input').value, 10) || 180;
     let src = cv.imread(canvas);
 
@@ -3740,6 +3795,185 @@ function highPassCv(cv, canvas) {
     filteredPlanes.delete();
     filteredComplex.delete();
     idft.delete();
+}
+
+async function lowPassDctCv(cv, canvas) {
+    let radius = parseInt(document.getElementById('dct-radius-input').value, 10) || 180;
+    let src = cv.imread(canvas);
+
+    if (src.channels() > 1)
+        cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+
+    // Crear máscara de filtro
+    let mask = cv.Mat.zeros(dctCalculed.rows, dctCalculed.cols, cv.CV_32F);
+    let cx = Math.floor(mask.cols / 2);
+    let cy = Math.floor(mask.rows / 2);
+
+    for (let y = 0; y < mask.rows; y++) {
+        for (let x = 0; x < mask.cols; x++) {
+            let dist = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+            if (Math.sqrt(x*x + y*y) < radius) {
+                mask.floatPtr(y, x)[0] = 1;
+            }
+        }
+    }
+
+    if (dctCalculed.type() !== cv.CV_32F)
+        dctCalculed.convertTo(dctCalculed, cv.CV_32F);
+
+    // Aplicar filtro
+    let dctFiltered = new cv.Mat();
+    cv.multiply(dctCalculed, mask, dctFiltered);
+
+    document.getElementById('dct-loading').style.display = 'block';
+    // Reconstruir imagen filtrada
+    let idct = new cv.Mat();
+    idct = array2DToMat(await idct2D(matTo2DArray(dctFiltered), function(progress) {
+        document.getElementById('dct-progress').value = progress;
+        document.getElementById('dct-progress-text').textContent = Math.round(progress * 100) + '%';
+    }));
+
+    document.getElementById('dct-loading').style.display = 'none';
+
+    cv.normalize(idct, idct, 0, 255, cv.NORM_MINMAX);
+    idct.convertTo(idct, cv.CV_8U);
+
+    cv.imshow(canvas, dctFiltered);
+
+    src.delete();
+    mask.delete();
+    dctFiltered.delete();
+    idct.delete();
+}
+
+async function highPassDctCv(cv, canvas) {
+    let radius = parseInt(document.getElementById('dct-radius-input').value, 10) || 180;
+
+    if (dctCalculed == null) {
+        alert('Primero debes calcular la DCT para aplicar el filtro.');
+        return;
+    }
+    // Crear máscara de filtro
+    let mask = cv.Mat.ones(dctCalculed.rows, dctCalculed.cols, cv.CV_32F);
+    let cx = Math.floor(mask.cols / 2);
+    let cy = Math.floor(mask.rows / 2);
+
+    for (let y = 0; y < mask.rows; y++) {
+        for (let x = 0; x < mask.cols; x++) {
+            let dist = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+            if (Math.sqrt(x*x + y*y) < radius) {
+                mask.floatPtr(y, x)[0] = 0;
+            }
+        }
+    }
+
+    if (dctCalculed.type() !== cv.CV_32F)
+        dctCalculed.convertTo(dctCalculed, cv.CV_32F);
+
+    // Aplicar filtro
+    let dctFiltered = new cv.Mat();
+    cv.multiply(dctCalculed, mask, dctFiltered);
+
+    document.getElementById('dct-loading').style.display = 'block';
+    // Reconstruir imagen filtrada
+
+    let idct = new cv.Mat();
+    idct = array2DToMat(await idct2D(matTo2DArray(dctFiltered), function(progress) {
+        document.getElementById('dct-progress').value = progress;
+        document.getElementById('dct-progress-text').textContent = Math.round(progress * 100) + '%';
+    }));
+
+    document.getElementById('dct-loading').style.display = 'none';
+
+    cv.normalize(idct, idct, 0, 255, cv.NORM_MINMAX);
+    idct.convertTo(idct, cv.CV_8U);
+
+    cv.imshow(canvas, idct);
+
+    mask.delete();
+    dctFiltered.delete();
+    idct.delete();
+}
+
+// DCT 2D manual
+async function dct2D(input, progressCallback) {
+    const N = input.length;
+    const M = input[0].length;
+    let output = Array.from({length: N}, () => Array(M).fill(0));
+    const PI = Math.PI;
+
+    for (let u = 0; u < N; u++) {
+        for (let v = 0; v < M; v++) {
+            let sum = 0;
+            for (let x = 0; x < N; x++) {
+                for (let y = 0; y < M; y++) {
+                    sum += input[x][y] *
+                        Math.cos(((2 * x + 1) * u * PI) / (2 * N)) *
+                        Math.cos(((2 * y + 1) * v * PI) / (2 * M));
+                }
+            }
+            let alphaU = u === 0 ? Math.sqrt(1 / N) : Math.sqrt(2 / N);
+            let alphaV = v === 0 ? Math.sqrt(1 / M) : Math.sqrt(2 / M);
+            output[u][v] = alphaU * alphaV * sum;
+        }
+
+        if (progressCallback) progressCallback((u + 1) / N);
+        await new Promise(resolve => setTimeout(resolve, 0)); // Permite que la UI se actualice
+    }
+    return output;
+}
+
+// IDCT 2D manual
+async function idct2D(input, progressCallback) {
+    const N = input.length;
+    const M = input[0].length;
+    let output = Array.from({length: N}, () => Array(M).fill(0));
+    const PI = Math.PI;
+
+    for (let x = 0; x < N; x++) {
+        for (let y = 0; y < M; y++) {
+            let sum = 0;
+            for (let u = 0; u < N; u++) {
+                for (let v = 0; v < M; v++) {
+                    let alphaU = u === 0 ? Math.sqrt(1 / N) : Math.sqrt(2 / N);
+                    let alphaV = v === 0 ? Math.sqrt(1 / M) : Math.sqrt(2 / M);
+                    sum += alphaU * alphaV * input[u][v] *
+                        Math.cos(((2 * x + 1) * u * PI) / (2 * N)) *
+                        Math.cos(((2 * y + 1) * v * PI) / (2 * M));
+                }
+            }
+            output[x][y] = sum;
+        }
+
+        if (progressCallback) progressCallback((x + 1) / N);
+        await new Promise(resolve => setTimeout(resolve, 0)); // Permite que la UI se actualice
+    }
+
+    return output;
+}
+
+function matTo2DArray(mat) {
+    let arr = [];
+    for (let y = 0; y < mat.rows; y++) {
+        let row = [];
+        for (let x = 0; x < mat.cols; x++) {
+            row.push(mat.floatAt(y, x)); // Usa floatAt si es CV_32F, sino usa mat.ucharAt(y, x)
+        }
+        arr.push(row);
+    }
+    return arr;
+}
+
+function array2DToMat(arr, type = cv.CV_32F) {
+    let rows = arr.length;
+    let cols = arr[0].length;
+    let mat = new cv.Mat(rows, cols, type);
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            mat.floatPtr(y, x)[0] = arr[y][x];
+        }
+    }
+    return mat;
 }
 
 // --- End OpenCv --- //
