@@ -3,12 +3,31 @@
 Esta aplicación web permite cargar, visualizar, procesar y exportar imágenes usando filtros y operaciones avanzadas, aprovechando la aceleración de WebGPU. Soporta múltiples formatos, compresión RLE y visualización de histogramas y curvas de perfil.
 
 ## Características principales
-
 - **Carga de imágenes**: Soporta imágenes estándar (PNG, JPG, BMP) y formatos Netpbm (PBM, PGM, PPM) y RLE.
 - **Procesamiento acelerado**: Filtros y operaciones implementados con WebGPU y shaders WGSL.
 - **Filtros disponibles**: Promedio, Mediana, Gaussiano, Prewitt, Sobel, Roberts, Sharpen, Negativo, Escala de grises, Umbral simple y múltiple, Flip horizontal y vertical, Rotación en múltiplos de 90°, Zoom, Gamma, Brillo, Contraste, Escala de color personalizada y Kernel personalizado.
 - **Exportación**: Guarda imágenes en formatos Netpbm (PBM, PGM, PPM), PNG, BMP y Netpbm comprimido con RLE (.rle).
 - **Visualización**: Histogramas RGB y de canales, curva tonal y curva de perfil de línea.
+- **Umbralización**:
+    - Umbral simple
+    - Umbral múltiple
+    - Umbral OTSU
+    - Umbral por media
+    - Umbral por mediana
+    - Umbral Isodata
+    - Umbral K-means
+- **Morfología**:
+    - Erosión
+    - Dilatación
+    - Apertura
+    - Cierre
+    - Kernel personalizado (máx. 7x7)
+- **Ecualización de histograma**:
+    - Ecualización global
+    - Ecualización por canales
+- **Balance de blancos**:
+    - Ajuste automático
+    - Ajuste en espacio YUV
 
 ## Uso
 
@@ -43,6 +62,13 @@ Esta aplicación web permite cargar, visualizar, procesar y exportar imágenes u
 - El formato Netpbm exportado es ASCII (P1, P2, P3).
 - La compresión RLE solo afecta el cuerpo de datos, no el encabezado Netpbm.
 - Para la última opción del menú que es la del Kernel personalizado, se estableció un máximo de 7x7, en ese sentido se puede hacer todas las combinaciones de kernels que se desee siempre y cuando no supere esas dimensiones. Los valores a ingresar en los inputs deben ser valores numéricos.
+- Se implementó la Transformada Discreta de Fourier (DFT) y la Transformada Discreta del Coseno (DCT) manual en JavaScript, permitiendo visualización de espectro, filtrado paso bajo y paso alto, y reconstrucción en el dominio espacial.
+- Los filtros frecuenciales (DFT/DCT) muestran barra de progreso (loading) durante el cálculo para evitar congelar la interfaz.
+- El filtrado paso bajo y paso alto en DCT se realiza desde la esquina superior izquierda (bajas frecuencias), a diferencia de DFT que se centra en el espectro.
+- Se agregaron modales para DFT y DCT, con visualización de espectro y botones para aplicar filtros.
+- Se permite el crecimiento de regiones (Region Growing) con múltiples semillas.
+- Se mejoró la visualización y ajuste de matiz, saturación y luminosidad.
+- Se agregaron animaciones y lógica avanzada para interacción de usuario en los menús y modales.
 
 ## Autor
 - Johan Quinter - Proyecto de la materia Procesamiento Digital de Imágenes - Postgrado UCV
