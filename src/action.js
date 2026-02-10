@@ -75,6 +75,11 @@ const TypeCv = {
   KMEANSCOLOR: 13,
   REGIONGROWING: 14,
   WHITEBALANCE: 15,
+  HUE: 16,
+  DFT: 17,
+  DCT: 18,
+  LOWPASS: 19,
+  HIGHPASS: 20
 };
 
 let vertexShader = `
@@ -584,7 +589,7 @@ function temporalShader() {
         var colorFinal = vec3<f32>(r, g, b);
         var hls = rgb2hls(colorFinal);
 
-        hls.x = clamp(hls.x + ${hueLevel}, 0.0, 1.0);
+        hls.x = clamp((hls.x + ${hueLevel}) % 1.0, 0.0, 1.0);
         hls.y = clamp(hls.y * ${lightnessLevel}, 0.0, 1.0);
         hls.z = clamp(hls.z * ${saturationLevel}, 0.0, 1.0);
 
@@ -2192,8 +2197,11 @@ function drawPannedImage() {
         const x = Math.floor(event.clientX - rect.left);
         const y = Math.floor(event.clientY - rect.top);
 
-        document.getElementById('region-growing-x-input').value = x;
-        document.getElementById('region-growing-y-input').value = y;
+        const value = document.querySelector('input[name="region-growing-point"]:checked').value;
+
+        document.getElementById('region-growing-x-input-' + value).value = x;
+        document.getElementById('region-growing-y-input-' + value).value = y;
+        
     });
 
     canvas.width = imageTemporal.naturalWidth;
@@ -2218,6 +2226,8 @@ function drawPannedImage() {
     profileCurveLine(parseInt(line.style.top.substring(0, line.style.top.length - 2)));
     goToTonalCurve();
     goToHistogram();
+
+    dftOpenCV(TypeCv.DFT);
 }
 // --- End Utility Functions --- //
 
@@ -2621,6 +2631,7 @@ async function main() {
             hueLevel = parseFloat(value) / 360.0;
             isTemporal = true;
             temporalShaders();
+            // initOpenCV(TypeCv.HUE, true);
         });
         document.getElementById('saturation-input').addEventListener('input', (event) => {
             auxSaturationLevel = saturationLevel;
@@ -2811,6 +2822,10 @@ async function initOpenCV(type, override = false) {
             case TypeCv.KMEANSCOLOR: kMeansColorCv(cv, auxCanvas); break;
             case TypeCv.REGIONGROWING: regionGrowingCv(cv, auxCanvas); break;
             case TypeCv.WHITEBALANCE: whiteBalanceCv(cv, auxCanvas); break;
+            case TypeCv.HUE: hueCv(cv, auxCanvas); break;
+            case TypeCv.DFT: dftCv(cv, auxCanvas); break;
+            case TypeCv.LOWPASS: lowPassCv(cv, auxCanvas); break;
+            case TypeCv.HIGHPASS: highPassCv(cv, auxCanvas); break;
             default: break;
         }
 
@@ -2829,6 +2844,53 @@ async function initOpenCV(type, override = false) {
         if (imageTemporal.complete)
             renderFunctions(override);
     }
+}
+
+function hueCv(cv, canvas) {
+    let src = cv.imread(canvas);
+    let rgb = new cv.Mat();
+    let hsv = new cv.Mat();
+    let dst = new cv.Mat();
+
+    cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB, 0);
+    cv.cvtColor(rgb, hsv, cv.COLOR_RGB2HSV, 0);
+
+    let channels = new cv.MatVector();
+    cv.split(hsv, channels);
+    let hue = channels.get(0);
+    let saturation = channels.get(1);
+    let value = channels.get(2);
+
+
+    alert(hueLevel);
+    let hueShift = Math.round(180 / 2); // hueLevel en grados, OpenCV usa 0-179
+    for (let row = 0; row < hue.rows; row++) {
+        for (let col = 0; col < hue.cols; col++) {
+            let h = hue.ucharPtr(row, col)[0];
+            h = (h + hueShift) % 180;
+            hue.ucharPtr(row, col)[0] = h;
+        }
+    }
+
+    let outChannels = new cv.MatVector();
+    outChannels.push_back(hue);
+    outChannels.push_back(saturation);
+    outChannels.push_back(value);
+
+    let merged = new cv.Mat();
+    cv.merge(outChannels, merged);
+
+    cv.cvtColor(merged, dst, cv.COLOR_HSV2RGB, 0);
+    cv.cvtColor(dst, dst, cv.COLOR_RGB2RGBA, 0);
+
+    cv.imshow(canvas, dst);
+
+    src.delete();
+    rgb.delete();
+    hsv.delete();
+    hue.delete();
+    merged.delete();
+    channels.delete();
 }
 
 // --- OpenCv --- //
@@ -3150,8 +3212,14 @@ function regionGrowingCv(cv, canvas) {
         
     let value = parseInt(input);
 
-    let x = parseInt(document.getElementById('region-growing-x-input').value);
-    let y = parseInt(document.getElementById('region-growing-y-input').value);
+    let x1 = parseInt(document.getElementById('region-growing-x-input-1').value);
+    let y1 = parseInt(document.getElementById('region-growing-y-input-1').value);
+    let x2 = parseInt(document.getElementById('region-growing-x-input-2').value);
+    let y2 = parseInt(document.getElementById('region-growing-y-input-2').value);
+    let x3 = parseInt(document.getElementById('region-growing-x-input-3').value);
+    let y3 = parseInt(document.getElementById('region-growing-y-input-3').value);
+    let x4 = parseInt(document.getElementById('region-growing-x-input-4').value);
+    let y4 = parseInt(document.getElementById('region-growing-y-input-4').value);
 
     let colorHex = document.getElementById('region-growing-color-input').value;
     const r = parseInt(colorHex.substr(1, 2), 16);
@@ -3173,7 +3241,6 @@ function regionGrowingCv(cv, canvas) {
     else flags = connectivity;
 
     // Parámetros configurables
-    let seedPoint = new cv.Point(x, y); // Cambia por el punto deseado
     let newVal = new cv.Scalar(r, g, b); // Valor para la región
     let loDiff = new cv.Scalar(value, value, value);
     let upDiff = new cv.Scalar(value, value, value);
@@ -3184,7 +3251,25 @@ function regionGrowingCv(cv, canvas) {
     let mask = new cv.Mat.zeros(src.rows + 2, src.cols + 2, cv.CV_8UC1);
 
     // floodFill
-    cv.floodFill(src, mask, seedPoint, newVal, rect, loDiff, upDiff, flags);
+    if (x1 != 0 && y1 != 0) {
+        let seedPoint = new cv.Point(x1, y1); // Cambia por el punto deseado
+        cv.floodFill(src, mask, seedPoint, newVal, rect, loDiff, upDiff, flags);
+    }
+
+    if (x2 != 0 && y2 != 0) {
+        let seedPoint = new cv.Point(x2, y2); // Cambia por el punto deseado
+        cv.floodFill(src, mask, seedPoint, newVal, rect, loDiff, upDiff, flags);
+    }
+
+    if (x3 != 0 && y3 != 0) {
+        let seedPoint = new cv.Point(x3, y3); // Cambia por el punto deseado
+        cv.floodFill(src, mask, seedPoint, newVal, rect, loDiff, upDiff, flags);
+    }
+
+    if (x4 != 0 && y4 != 0) {
+        let seedPoint = new cv.Point(x4, y4); // Cambia por el punto deseado
+        cv.floodFill(src, mask, seedPoint, newVal, rect, loDiff, upDiff, flags);
+    }
 
     // Mostrar resultado
     cv.imshow(canvas, src);
@@ -3417,6 +3502,244 @@ function rotateCv(cv, canvas) {
     src.delete();
     dst.delete();
     rotateMat.delete();
+}
+
+// DFT
+async function dftOpenCV(type) {
+    if (isCvLoaded()) {
+        const gpuCanvas2d = document.getElementById('gpu-canvas-2d');
+
+        const dftCanvasMag = document.getElementById('dft-canvas-mag');
+        dftCanvasMag.width = gpuCanvas2d.width;
+        dftCanvasMag.height = gpuCanvas2d.height;
+
+        const dftCanvasPhase = document.getElementById('dft-canvas-phase');
+        dftCanvasPhase.width = gpuCanvas2d.width;
+        dftCanvasPhase.height = gpuCanvas2d.height;
+
+        const auxCtxMag = dftCanvasMag.getContext('2d');
+        auxCtxMag.drawImage(gpuCanvas2d, 0, 0);
+
+        const auxCtxPhase = dftCanvasPhase.getContext('2d');
+        auxCtxPhase.drawImage(gpuCanvas2d, 0, 0);
+
+        switch (type) {
+            case TypeCv.DFT: dftCv(cv, gpuCanvas2d, dftCanvasMag, dftCanvasPhase); break;
+            default: break;
+        }
+    }
+}
+
+function dftCv(cv, canvasSrc, canvasMag, canvasPhase) {
+    let src = cv.imread(canvasSrc);
+
+    if (src.channels() > 1)
+        cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+
+    src.convertTo(src, cv.CV_32F);
+
+    let planes = new cv.MatVector();
+    planes.push_back(src);
+    planes.push_back(cv.Mat.zeros(src.rows, src.cols, cv.CV_32F));
+    let complex = new cv.Mat();
+    cv.merge(planes, complex);
+
+    cv.dft(complex, complex);
+
+    cv.split(complex, planes);
+    let real = planes.get(0);
+    let imag = planes.get(1);
+
+    let phase = new cv.Mat(real.rows, real.cols, cv.CV_32F);
+
+    for (let row = 0; row < real.rows; row++) {
+        for (let col = 0; col < real.cols; col++) {
+            let re = real.floatAt(row, col);
+            let im = imag.floatAt(row, col);
+            phase.floatPtr(row, col)[0] = Math.atan2(im, re);
+        }
+    }
+    
+    let mag = new cv.Mat();
+    cv.magnitude(real, imag, mag);
+
+    // Logaritmo para visualizar mejor
+    cv.add(mag, cv.Mat.ones(mag.rows, mag.cols, mag.type()), mag);
+    cv.log(mag, mag);
+
+    cv.normalize(phase, phase, 0, 255, cv.NORM_MINMAX);
+    phase.convertTo(phase, cv.CV_8U);
+
+    cv.normalize(mag, mag, 0, 255, cv.NORM_MINMAX);
+    mag.convertTo(mag, cv.CV_8U);
+
+    // Centrar el espectro (intercambiar cuadrantes)
+    let cxPhase = Math.floor(phase.cols / 2);
+    let cyPhase = Math.floor(phase.rows / 2);
+    let q0Phase = phase.roi(new cv.Rect(0, 0, cxPhase, cyPhase));
+    let q1Phase = phase.roi(new cv.Rect(cxPhase, 0, cxPhase, cyPhase));
+    let q2Phase = phase.roi(new cv.Rect(0, cyPhase, cxPhase, cyPhase));
+    let q3Phase = phase.roi(new cv.Rect(cxPhase, cyPhase, cxPhase, cyPhase));
+    let tmpPhase = new cv.Mat();
+    q0Phase.copyTo(tmpPhase); q3Phase.copyTo(q0Phase); tmpPhase.copyTo(q3Phase);
+    q1Phase.copyTo(tmpPhase); q2Phase.copyTo(q1Phase); tmpPhase.copyTo(q2Phase);
+
+    let cxMag = Math.floor(mag.cols / 2);
+    let cyMag = Math.floor(mag.rows / 2);
+    let q0Mag = mag.roi(new cv.Rect(0, 0, cxMag, cyMag));
+    let q1Mag = mag.roi(new cv.Rect(cxMag, 0, cxMag, cyMag));
+    let q2Mag = mag.roi(new cv.Rect(0, cyMag, cxMag, cyMag));
+    let q3Mag = mag.roi(new cv.Rect(cxMag, cyMag, cxMag, cyMag));
+    let tmpMag = new cv.Mat();
+    q0Mag.copyTo(tmpMag); q3Mag.copyTo(q0Mag); tmpMag.copyTo(q3Mag);
+    q1Mag.copyTo(tmpMag); q2Mag.copyTo(q1Mag); tmpMag.copyTo(q2Mag);
+
+    // Mostrar espectro centrado
+    cv.imshow(canvasMag, mag);
+    cv.imshow(canvasPhase, phase);
+
+    // Liberar memoria
+    src.delete();
+    planes.delete();
+    complex.delete();
+    mag.delete();
+    phase.delete();
+    tmpMag.delete();
+    tmpPhase.delete();
+}
+
+function lowPassCv(cv, canvas) {
+    let radius = parseInt(document.getElementById('dft-radius-input').value, 10) || 180;
+    let src = cv.imread(canvas);
+
+    if (src.channels() > 1)
+        cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+
+    src.convertTo(src, cv.CV_32F);
+
+    let planes = new cv.MatVector();
+    planes.push_back(src);
+    planes.push_back(cv.Mat.zeros(src.rows, src.cols, cv.CV_32F));
+    let complex = new cv.Mat();
+    cv.merge(planes, complex);
+
+    cv.dft(complex, complex);
+
+    cv.split(complex, planes);
+    let real = planes.get(0);
+    let imag = planes.get(1);
+
+    // Crear máscara de paso bajo (lowpass)
+    let mask = cv.Mat.ones(src.rows, src.cols, cv.CV_32F);
+    let cx = Math.floor(mask.cols / 2);
+    let cy = Math.floor(mask.rows / 2);
+
+    for (let y = 0; y < mask.rows; y++) {
+        for (let x = 0; x < mask.cols; x++) {
+            let dist = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+            if (dist < radius) {
+                mask.floatPtr(y, x)[0] = 0;
+            }
+        }
+    }
+
+    // Aplicar máscara a real e imaginario
+    cv.multiply(real, mask, real);
+    cv.multiply(imag, mask, imag);
+    
+    // Unir y hacer IDFT
+    let filteredPlanes = new cv.MatVector();
+    filteredPlanes.push_back(real);
+    filteredPlanes.push_back(imag);
+
+    let filteredComplex = new cv.Mat();
+    cv.merge(filteredPlanes, filteredComplex);
+
+    let idft = new cv.Mat();
+    cv.dft(filteredComplex, idft, cv.DFT_INVERSE | cv.DFT_SCALE | cv.DFT_REAL_OUTPUT, 0);
+
+    cv.normalize(idft, idft, 0, 255, cv.NORM_MINMAX);
+    idft.convertTo(idft, cv.CV_8U);
+
+    // Mostrar resultado en canvas destino
+    cv.imshow(canvas, idft);
+
+    src.delete();
+    planes.delete();
+    complex.delete();
+    real.delete();
+    imag.delete();
+    mask.delete();
+    filteredPlanes.delete();
+    filteredComplex.delete();
+    idft.delete();
+}
+
+function highPassCv(cv, canvas) {
+    let radius = parseInt(document.getElementById('dft-radius-input').value, 10) || 180;
+    let src = cv.imread(canvas);
+
+    if (src.channels() > 1)
+        cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+
+    src.convertTo(src, cv.CV_32F);
+
+    let planes = new cv.MatVector();
+    planes.push_back(src);
+    planes.push_back(cv.Mat.zeros(src.rows, src.cols, cv.CV_32F));
+    let complex = new cv.Mat();
+    cv.merge(planes, complex);
+
+    cv.dft(complex, complex);
+
+    cv.split(complex, planes);
+    let real = planes.get(0);
+    let imag = planes.get(1);
+
+    // Crear máscara de paso alto (highpass)
+    let mask = cv.Mat.ones(src.rows, src.cols, cv.CV_32F);
+    let cx = Math.floor(mask.cols / 2);
+    let cy = Math.floor(mask.rows / 2);
+
+    for (let y = 0; y < mask.rows; y++) {
+        for (let x = 0; x < mask.cols; x++) {
+            let dist = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+            if (dist > radius) {
+                mask.floatPtr(y, x)[0] = 0;
+            }
+        }
+    }
+
+    // Aplicar máscara a real e imaginario
+    cv.multiply(real, mask, real);
+    cv.multiply(imag, mask, imag);
+    
+    // Unir y hacer IDFT
+    let filteredPlanes = new cv.MatVector();
+    filteredPlanes.push_back(real);
+    filteredPlanes.push_back(imag);
+
+    let filteredComplex = new cv.Mat();
+    cv.merge(filteredPlanes, filteredComplex);
+
+    let idft = new cv.Mat();
+    cv.dft(filteredComplex, idft, cv.DFT_INVERSE | cv.DFT_SCALE | cv.DFT_REAL_OUTPUT, 0);
+
+    cv.normalize(idft, idft, 0, 255, cv.NORM_MINMAX);
+    idft.convertTo(idft, cv.CV_8U);
+
+    // Mostrar resultado en canvas destino
+    cv.imshow(canvas, idft);
+
+    src.delete();
+    planes.delete();
+    complex.delete();
+    real.delete();
+    imag.delete();
+    mask.delete();
+    filteredPlanes.delete();
+    filteredComplex.delete();
+    idft.delete();
 }
 
 // --- End OpenCv --- //

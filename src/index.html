@@ -128,7 +128,7 @@
                         <a href="#"><span id="menu-contrast"><b>Contraste</b></span><input type="number" id="contrast-input" class="input-style" value="1" step="0.1" min="0.0" max="10.0"></a>
                         <a href="#"><span id="menu-gamma"><b>Gamma</b></span><input type="number" id="gamma-input" class="input-style" value="1" step="0.1" min="0.0" max="5.0"></a>
                         <a href="#" id="menu-white-balance"><b><u>Balance de blancos</u></b></a>
-                        <a href="#"><span id="menu-hue"><b>Matiz</b></span><input type="number" id="hue-input" class="input-style" value="0" step="1" min="0" max="180"></a>
+                        <a href="#"><span id="menu-hue"><b>Matiz</b></span><input type="number" id="hue-input" class="input-style" value="0" step="1" min="0" max="360"></a>
                         <a href="#"><span id="menu-saturation"><b>Saturación</b></span><input type="number" id="saturation-input" class="input-style" value="0" step="0.1" min="0"></a>
                         <a href="#"><span id="menu-lightness"><b>Luminosidad</b></span><input type="number" id="lightness-input" class="input-style" value="0" step="0.1" min="0"></a>
                     </div>
@@ -318,9 +318,28 @@
                             <label><input type="radio" name="region-growing-connectivity" value="8"><span>8</span></label>
                         </div>
                         <div style="padding-left: 8px;">
-                            <span><b>Punto:</b> </span>
-                            <input type="number" id="region-growing-x-input" class="input-style filters" value="0" step="1" min="0">
-                            <input type="number" id="region-growing-y-input" class="input-style filters" value="0" step="1" min="0">
+                            <span><b>Punto 1:</b> </span>
+                            <input type="number" id="region-growing-x-input-1" class="input-style filters" value="0" step="1" min="0">
+                            <input type="number" id="region-growing-y-input-1" class="input-style filters" value="0" step="1" min="0">
+                            <input type="radio" name="region-growing-point" value="1" style="vertical-align: top;" checked><span></span>
+                        </div>
+                        <div style="padding-left: 8px;">
+                            <span><b>Punto 2:</b> </span>
+                            <input type="number" id="region-growing-x-input-2" class="input-style filters" value="0" step="1" min="0">
+                            <input type="number" id="region-growing-y-input-2" class="input-style filters" value="0" step="1" min="0">
+                            <input type="radio" name="region-growing-point" value="2" style="vertical-align: top;"><span></span>
+                        </div>
+                        <div style="padding-left: 8px;">
+                            <span><b>Punto 3:</b> </span>
+                            <input type="number" id="region-growing-x-input-3" class="input-style filters" value="0" step="1" min="0">
+                            <input type="number" id="region-growing-y-input-3" class="input-style filters" value="0" step="1" min="0">
+                            <input type="radio" name="region-growing-point" value="3" style="vertical-align: top;"><span></span>
+                        </div>
+                        <div style="padding-left: 8px;">
+                            <span><b>Punto 4:</b> </span>
+                            <input type="number" id="region-growing-x-input-4" class="input-style filters" value="0" step="1" min="0">
+                            <input type="number" id="region-growing-y-input-4" class="input-style filters" value="0" step="1" min="0">
+                            <input type="radio" name="region-growing-point" value="4" style="vertical-align: top;"><span></span>
                         </div>
                         <button id="region-growing-btn" style="margin-left: 8px; width: 95%;" type="button" class="menu-btn">Go</button>
                     </div>
@@ -331,6 +350,30 @@
                     <div class="menu-group-content">
                         <a href="#" id="menu-custom"><span><b><u>Kernel Custom</u></b></span></a>
                         <a href="#" id="menu-equalization"><b><u>Equalization</u></b></a>
+                        <a href="#" id="menu-dft"><b><u>DFT</u></b></a>
+                    </div>
+                </div>
+                <!-- Modal DFT -->
+                <div id="dft-modal" class="modal" style="display:none;">
+                    <div class="modal-content" style="max-width: 700px;">
+                        <span class="close" id="close-dft-modal">&times;</span>
+                        <h2 style="margin:0px 0px 12px 0px;">Transformada de Fourier (DFT)</h2>
+                        <div style="display: flex; flex-direction: row; gap: 16px; justify-content: center; align-items: center;">
+                            <canvas id="dft-canvas-mag" width="256" height="256" style="border:1px solid #ccc;"></canvas>
+                            <canvas id="dft-canvas-phase" width="256" height="256" style="border:1px solid #ccc;"></canvas>
+                        </div>
+                        <div style="display: flex; flex-direction: row; gap: 16px; justify-content: space-around; margin-top: 6px;">
+                            <span>Magnitud</span>
+                            <span>Fase</span>
+                        </div>
+                        <div style="display: flex; flex-direction: row; gap: 16px; justify-content: center; margin-top: 6px;">
+                            <span style="align-content: center;">Radio:</span>
+                            <input type="number" id="dft-radius-input" class="input-style filters" value="0" step="1" min="0">
+                        </div>
+                        <div style="display: flex; flex-direction: row; gap: 16px; justify-content: center; margin-top: 24px;">
+                            <button id="dft-lowpass-btn" class="menu-btn">Paso bajo</button>
+                            <button id="dft-highpass-btn" class="menu-btn">Paso alto</button>
+                        </div>
                     </div>
                 </div>
                 <!-- Modal for custom kernel -->

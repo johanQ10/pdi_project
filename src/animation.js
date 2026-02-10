@@ -1,3 +1,36 @@
+// --- Modal DFT ---
+document.addEventListener('DOMContentLoaded', function() {
+    const menuDFT = document.getElementById('menu-dft');
+    const modalDFT = document.getElementById('dft-modal');
+    const closeDFT = document.getElementById('close-dft-modal');
+    const lowBtn = document.getElementById('dft-lowpass-btn');
+    const highBtn = document.getElementById('dft-highpass-btn');
+
+    if (menuDFT && modalDFT && closeDFT) {
+        menuDFT.addEventListener('click', function(e) {
+            e.preventDefault();
+            modalDFT.style.display = 'block';
+            dftOpenCV(TypeCv.DFT);
+        });
+        closeDFT.addEventListener('click', function() {
+            modalDFT.style.display = 'none';
+        });
+        window.addEventListener('click', function(event) {
+            if (event.target === modalDFT) {
+                modalDFT.style.display = 'none';
+            }
+        });
+    }
+
+    if (lowBtn && highBtn) {
+        lowBtn.addEventListener('click', function() {
+            initOpenCV(TypeCv.LOWPASS, true);
+        });
+        highBtn.addEventListener('click', function() {
+            initOpenCV(TypeCv.HIGHPASS, true);
+        });
+    }
+});
 // Modal logic for custom kernel
 document.addEventListener('DOMContentLoaded', function() {
     const menuCustom = document.getElementById('menu-custom');
@@ -16,7 +49,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const input = document.getElementById(id);
             if (input) {
                 inputsContainer.appendChild(input);
-                alert('Input ' + id + ' moved to modal.');
             } else {
                 const newInput = document.createElement('input');
                 newInput.type = 'number';
@@ -108,7 +140,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const input = document.getElementById(id);
             if (input) {
                 inputsContainer.appendChild(input);
-                alert('Input ' + id + ' moved to modal.');
             } else {
                 const newInput = document.createElement('input');
                 newInput.type = 'number';
